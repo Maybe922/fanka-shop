@@ -1,0 +1,66 @@
+import { createPublicClient } from "@/lib/supabase/public";
+import { createServiceClient } from "@/lib/supabase/server";
+import { hasSupabaseConfig } from "@/lib/env";
+import type { PublicProduct, ProductWithStock, AdminOrder } from "@/lib/types";
+
+// Landing page: only safe columns via the public_products view.
+// Returns [] (instead of throwing) when Supabase isn't configured yet,
+// so the site still renders before setup is complete.
+export async function getPublicProducts(): Promise<PublicProduct[]> {
+  if (!hasSupabaseConfig()) return [];
+  try {
+    const supabase = createPublicClient();
+    const { data, error } = await supabase
+      .from("public_products")
+      .select("id, name, description, price_cents, sort_order, stock");
+    if (error) {
+      console.error("[getPublicProducts]", error.message);
+      return [];
+    }
+    return (data ?? []) as PublicProduct[];
+  } catch (err) {
+    console.error("[getPublicProducts]", err);
+    return [];
+  }
+}
+
+export async function getAdminProducts(): Promise<ProductWithStock[]> {
+  const supabase = createServiceClient();
+  const { data, error } = await supabase
+    .from("product_stock")
+    .select("*")
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: true });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as ProductWithStock[];
+}
+
+export async function getRecentOrders(limit = 50): Promise<AdminOrder[]> {
+  const supabase = createServiceClient();
+  const { data, error } = await supabase
+    .from("orders")
+    .select(
+      "id, product_id, trade_order_id, amount_cents, status, card_id, paid_at, created_at, products(name)",
+    )
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw new Error(error.message);
+
+  return (data ?? []).map((row) => {
+    const product = row.products as { name: string } | { name: string }[] | null;
+    const productName = Array.isArray(product)
+      ? (product[0]?.name ?? null)
+      : (product?.name ?? null);
+    return {
+      id: row.id,
+      product_id: row.product_id,
+      product_name: productName,
+      trade_order_id: row.trade_order_id,
+      amount_cents: row.amount_cents,
+      status: row.status,
+      card_id: row.card_id,
+      paid_at: row.paid_at,
+      created_at: row.created_at,
+    } satisfies AdminOrder;
+  });
+}

@@ -23,6 +23,17 @@ export interface ProductWithStock {
   sold: number;
 }
 
+// One 卡密 row for per-product management in the admin panel.
+export interface AdminCard {
+  id: string;
+  product_id: string;
+  secret: string;
+  status: "unsold" | "sold";
+  order_id: string | null;
+  sold_at: string | null;
+  created_at: string;
+}
+
 export interface AdminOrder {
   id: string;
   product_id: string;

@@ -125,3 +125,22 @@ alter table orders   enable row level security;
 -- Expose only the safe public view + delivery function to anon.
 grant select on public_products to anon, authenticated;
 grant execute on function deliver_order(text) to service_role;
+
+-- ── service_role 授权 ────────────────────────────────────────────
+-- 服务端（后台/下单/回调）全程用 service_role 读写 cards/orders/products，
+-- RLS 对它不生效，这是 Supabase 的标准模型。
+--
+-- ⚠️ 通过 Supabase SQL Editor 运行本文件时，平台会自动把表权限授予
+-- service_role，下面这段是冗余且无害的；但如果你用「数据库直连」
+-- （psql / 连接串）建表，则不会触发那套自动授权，service_role 会缺权限
+-- 导致后台报 "permission denied for table orders"。这段保证两种方式都能用。
+grant usage on schema public to anon, authenticated, service_role;
+
+grant all on all tables    in schema public to service_role;
+grant all on all sequences in schema public to service_role;
+grant all on all functions in schema public to service_role;
+
+-- 让今后新建的表/序列/函数也自动授权给 service_role，避免再次踩坑。
+alter default privileges in schema public grant all on tables    to service_role;
+alter default privileges in schema public grant all on sequences to service_role;
+alter default privileges in schema public grant all on functions to service_role;

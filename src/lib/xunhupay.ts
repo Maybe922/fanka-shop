@@ -63,7 +63,9 @@ export async function createXunhuOrder(
     return_url: input.returnUrl,
     nonce_str: crypto.randomBytes(8).toString("hex"),
     type: "WAP",
-    wap_url: input.returnUrl,
+    // wap_url 必须是站点根地址（短）。虎皮椒对其有长度限制——
+    // 若塞入带 UUID 的逐单 return_url 会返回「系统内部错误」。
+    wap_url: new URL(input.returnUrl).origin,
     wap_name: input.title,
   };
   params.hash = xunhuSign(params, secret);

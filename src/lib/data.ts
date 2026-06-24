@@ -1,7 +1,12 @@
 import { createPublicClient } from "@/lib/supabase/public";
 import { createServiceClient } from "@/lib/supabase/server";
 import { hasSupabaseConfig } from "@/lib/env";
-import type { PublicProduct, ProductWithStock, AdminOrder } from "@/lib/types";
+import type {
+  PublicProduct,
+  ProductWithStock,
+  AdminOrder,
+  AdminCard,
+} from "@/lib/types";
 
 // Landing page: only safe columns via the public_products view.
 // Returns [] (instead of throwing) when Supabase isn't configured yet,
@@ -33,6 +38,18 @@ export async function getAdminProducts(): Promise<ProductWithStock[]> {
     .order("created_at", { ascending: true });
   if (error) throw new Error(error.message);
   return (data ?? []) as ProductWithStock[];
+}
+
+// All 卡密 across products, newest first — grouped per product by the admin page.
+export async function getAllCards(): Promise<AdminCard[]> {
+  const supabase = createServiceClient();
+  const { data, error } = await supabase
+    .from("cards")
+    .select("id, product_id, secret, status, order_id, sold_at, created_at")
+    .order("status", { ascending: false }) // 'unsold' > 'sold'：未售（可用）在前
+    .order("created_at", { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as AdminCard[];
 }
 
 export async function getRecentOrders(limit = 50): Promise<AdminOrder[]> {

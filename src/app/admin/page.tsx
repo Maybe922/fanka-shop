@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { isAuthenticated } from "@/lib/admin-auth";
-import { getAdminProducts, getRecentOrders } from "@/lib/data";
+import { getAdminProducts, getRecentOrders, getAllCards } from "@/lib/data";
+import type { AdminCard } from "@/lib/types";
 import { logoutAction } from "./actions";
 import { NewProductForm } from "@/components/admin/NewProductForm";
 import { AdminProductCard } from "@/components/admin/AdminProductCard";
@@ -20,10 +21,18 @@ export default async function AdminPage({
   }
 
   const { error, ok } = await searchParams;
-  const [products, orders] = await Promise.all([
+  const [products, orders, cards] = await Promise.all([
     getAdminProducts(),
     getRecentOrders(),
+    getAllCards(),
   ]);
+
+  const cardsByProduct = new Map<string, AdminCard[]>();
+  for (const c of cards) {
+    const arr = cardsByProduct.get(c.product_id);
+    if (arr) arr.push(c);
+    else cardsByProduct.set(c.product_id, [c]);
+  }
 
   return (
     <main className="flex-1">
@@ -71,7 +80,11 @@ export default async function AdminPage({
           ) : (
             <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
               {products.map((p) => (
-                <AdminProductCard key={p.id} product={p} />
+                <AdminProductCard
+                  key={p.id}
+                  product={p}
+                  cards={cardsByProduct.get(p.id) ?? []}
+                />
               ))}
             </div>
           )}

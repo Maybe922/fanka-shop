@@ -14,9 +14,14 @@ export async function SiteHeader() {
       <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3.5">
         {/* 品牌：方块标记 + 字号商标 */}
         <Link href="/" className="group flex items-center gap-2.5">
-          <span className="grid h-7 w-7 place-items-center rounded-[6px] bg-ink font-mono text-sm font-bold text-bg transition-transform group-hover:-rotate-6">
-            双
-          </span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={site.logoUrl}
+            alt={site.name}
+            width={36}
+            height={36}
+            className="h-9 w-9 rounded-[7px] object-contain transition-transform group-hover:-rotate-6"
+          />
           <span className="flex flex-col leading-none">
             <span className="text-[15px] font-semibold tracking-tight">
               {site.name}

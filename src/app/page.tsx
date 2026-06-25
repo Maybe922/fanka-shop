@@ -46,14 +46,15 @@ export default async function Home() {
           <span className="reg-mark left-5 top-5" />
           <span className="reg-mark right-5 top-5" />
 
-          <div className="relative mx-auto max-w-6xl px-5 pb-16 pt-16 sm:pb-24 sm:pt-24">
-            <p
-              className="reveal flex items-center gap-2.5 font-mono text-[12px] uppercase tracking-[0.18em] text-muted"
-              style={{ animationDelay: "0ms" }}
-            >
-              <span className="live-dot" />
-              自动发卡终端 · 实时在线
-            </p>
+          <div className="relative mx-auto grid max-w-6xl grid-cols-1 items-center gap-10 px-5 py-16 sm:py-24 lg:grid-cols-2 lg:gap-12">
+            <div>
+              <p
+                className="reveal flex items-center gap-2.5 font-mono text-[12px] uppercase tracking-[0.18em] text-muted"
+                style={{ animationDelay: "0ms" }}
+              >
+                <span className="live-dot" />
+                自动发卡终端 · 实时在线
+              </p>
 
             <h1 className="mt-6 max-w-3xl text-[2.75rem] font-bold leading-[1.04] tracking-[-0.02em] sm:text-7xl">
               <span
@@ -92,6 +93,22 @@ export default async function Home() {
                 </li>
               ))}
             </ul>
+            </div>
+
+            {/* 右侧主视觉图 */}
+            <div
+              className="reveal"
+              style={{ animationDelay: "260ms" }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={site.heroImage}
+                alt={site.name}
+                width={960}
+                height={960}
+                className="mx-auto aspect-square w-full max-w-sm rounded-[1.75rem] border border-line object-cover shadow-[0_30px_70px_-32px_rgba(27,23,19,0.5)] sm:max-w-md lg:max-w-none"
+              />
+            </div>
           </div>
         </section>
 
@@ -181,9 +198,14 @@ export default async function Home() {
       <footer className="border-t border-line bg-surface">
         <div className="mx-auto flex max-w-6xl flex-col gap-2 px-5 py-9 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2.5">
-            <span className="grid h-6 w-6 place-items-center rounded-[5px] bg-ink font-mono text-xs font-bold text-bg">
-              双
-            </span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={site.logoUrl}
+              alt={site.name}
+              width={28}
+              height={28}
+              className="h-7 w-7 rounded-[6px] object-contain"
+            />
             <span className="text-sm font-semibold">{site.name}</span>
           </div>
           <p className="font-mono text-[12px] text-muted">

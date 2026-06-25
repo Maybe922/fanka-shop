@@ -61,13 +61,13 @@ export default async function Home() {
                 className="reveal block"
                 style={{ animationDelay: "80ms" }}
               >
-                自助下单，
+                划算稳定，
               </span>
               <span
                 className="reveal block"
                 style={{ animationDelay: "180ms" }}
               >
-                付款后<span className="text-accent">秒</span>发卡密。
+                <span className="text-accent">AI</span> 订阅。
               </span>
             </h1>
 

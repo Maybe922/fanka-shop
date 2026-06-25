@@ -27,6 +27,7 @@ function refreshAdmin(): void {
 const productSchema = z.object({
   name: z.string().trim().min(1, "请输入商品名称").max(120),
   description: z.string().trim().max(2000).optional().default(""),
+  usageNotes: z.string().trim().max(8000).optional().default(""),
   priceYuan: z.coerce.number().min(0, "价格不能为负"),
   sortOrder: z.coerce.number().int().default(0),
 });
@@ -36,18 +37,20 @@ export async function createProduct(formData: FormData): Promise<void> {
   const parsed = productSchema.safeParse({
     name: formData.get("name"),
     description: formData.get("description"),
+    usageNotes: formData.get("usageNotes"),
     priceYuan: formData.get("priceYuan"),
     sortOrder: formData.get("sortOrder") || 0,
   });
   if (!parsed.success) {
     redirect("/admin?error=" + encodeURIComponent(parsed.error.issues[0].message));
   }
-  const { name, description, priceYuan, sortOrder } = parsed.data;
+  const { name, description, usageNotes, priceYuan, sortOrder } = parsed.data;
 
   const supabase = createServiceClient();
   const { error } = await supabase.from("products").insert({
     name,
     description: description || null,
+    usage_notes: usageNotes || null,
     price_cents: yuanToCents(priceYuan),
     sort_order: sortOrder,
   });
@@ -68,6 +71,7 @@ export async function updateProduct(formData: FormData): Promise<void> {
     id: formData.get("id"),
     name: formData.get("name"),
     description: formData.get("description"),
+    usageNotes: formData.get("usageNotes"),
     priceYuan: formData.get("priceYuan"),
     sortOrder: formData.get("sortOrder") || 0,
     isActive: formData.get("isActive") === "on",
@@ -75,7 +79,8 @@ export async function updateProduct(formData: FormData): Promise<void> {
   if (!parsed.success) {
     redirect("/admin?error=" + encodeURIComponent(parsed.error.issues[0].message));
   }
-  const { id, name, description, priceYuan, sortOrder, isActive } = parsed.data;
+  const { id, name, description, usageNotes, priceYuan, sortOrder, isActive } =
+    parsed.data;
 
   const supabase = createServiceClient();
   const { error } = await supabase
@@ -83,6 +88,7 @@ export async function updateProduct(formData: FormData): Promise<void> {
     .update({
       name,
       description: description || null,
+      usage_notes: usageNotes || null,
       price_cents: yuanToCents(priceYuan),
       sort_order: sortOrder,
       is_active: isActive,
@@ -108,20 +114,26 @@ export async function deleteProduct(formData: FormData): Promise<void> {
 }
 
 // ── Cards (进货) ──────────────────────────────────────────────
+// 卡密级操作走 useActionState：返回结果而非整页跳转，配合 revalidatePath
+// 原地刷新列表 —— 不丢滚动位置、不污染 URL、按钮可显示「处理中」。
+export type CardActionState = { ok: boolean; message: string };
 
 const addCardsSchema = z.object({
   productId: z.string().uuid(),
   secrets: z.string().min(1, "请粘贴卡密"),
 });
 
-export async function addCards(formData: FormData): Promise<void> {
+export async function addCards(
+  _prev: CardActionState | null,
+  formData: FormData,
+): Promise<CardActionState> {
   await assertAdmin();
   const parsed = addCardsSchema.safeParse({
     productId: formData.get("productId"),
     secrets: formData.get("secrets"),
   });
   if (!parsed.success) {
-    redirect("/admin?error=" + encodeURIComponent(parsed.error.issues[0].message));
+    return { ok: false, message: parsed.error.issues[0].message };
   }
 
   // One 卡密 per line; trim, drop blanks and duplicates.
@@ -133,7 +145,7 @@ export async function addCards(formData: FormData): Promise<void> {
         .filter(Boolean),
     ),
   );
-  if (lines.length === 0) redirect("/admin?error=没有有效的卡密");
+  if (lines.length === 0) return { ok: false, message: "没有有效的卡密" };
 
   const supabase = createServiceClient();
   const rows = lines.map((secret) => ({
@@ -141,10 +153,10 @@ export async function addCards(formData: FormData): Promise<void> {
     secret,
   }));
   const { error } = await supabase.from("cards").insert(rows);
-  if (error) redirect("/admin?error=" + encodeURIComponent(error.message));
+  if (error) return { ok: false, message: error.message };
 
   refreshAdmin();
-  redirect("/admin?ok=" + encodeURIComponent(`已进货 ${lines.length} 张卡密`));
+  return { ok: true, message: `已进货 ${lines.length} 张卡密` };
 }
 
 // ── Card management（单张卡密：改内容 / 删除）────────────────────
@@ -156,14 +168,17 @@ const updateCardSchema = z.object({
 
 // 改卡密内容。已售卡也可改——订单页实时读 cards.secret，
 // 改完买家刷新即看到新值（用于更换出问题的卡密）。
-export async function updateCardSecret(formData: FormData): Promise<void> {
+export async function updateCardSecret(
+  _prev: CardActionState | null,
+  formData: FormData,
+): Promise<CardActionState> {
   await assertAdmin();
   const parsed = updateCardSchema.safeParse({
     cardId: formData.get("cardId"),
     secret: formData.get("secret"),
   });
   if (!parsed.success) {
-    redirect("/admin?error=" + encodeURIComponent(parsed.error.issues[0].message));
+    return { ok: false, message: parsed.error.issues[0].message };
   }
 
   const supabase = createServiceClient();
@@ -171,18 +186,21 @@ export async function updateCardSecret(formData: FormData): Promise<void> {
     .from("cards")
     .update({ secret: parsed.data.secret })
     .eq("id", parsed.data.cardId);
-  if (error) redirect("/admin?error=" + encodeURIComponent(error.message));
+  if (error) return { ok: false, message: error.message };
 
   refreshAdmin();
-  redirect("/admin?ok=" + encodeURIComponent("卡密已更新"));
+  return { ok: true, message: "卡密已更新" };
 }
 
 // 删除单张卡密。仅允许删未售的——已售卡被订单引用，删除会破坏订单记录，
 // 如需处理已售出的问题卡，请改它的内容（换货）而非删除。
-export async function deleteCard(formData: FormData): Promise<void> {
+export async function deleteCard(
+  _prev: CardActionState | null,
+  formData: FormData,
+): Promise<CardActionState> {
   await assertAdmin();
   const id = z.string().uuid().safeParse(formData.get("cardId"));
-  if (!id.success) redirect("/admin?error=参数错误");
+  if (!id.success) return { ok: false, message: "参数错误" };
 
   const supabase = createServiceClient();
   const { data, error } = await supabase
@@ -191,14 +209,14 @@ export async function deleteCard(formData: FormData): Promise<void> {
     .eq("id", id.data)
     .eq("status", "unsold")
     .select("id");
-  if (error) redirect("/admin?error=" + encodeURIComponent(error.message));
+  if (error) return { ok: false, message: error.message };
   if (!data || data.length === 0) {
-    redirect(
-      "/admin?error=" +
-        encodeURIComponent("该卡密已售出，不能删除；如需处理请直接编辑其内容（换货）"),
-    );
+    return {
+      ok: false,
+      message: "该卡密已售出，不能删除；如需处理请直接编辑其内容（换货）",
+    };
   }
 
   refreshAdmin();
-  redirect("/admin?ok=" + encodeURIComponent("卡密已删除"));
+  return { ok: true, message: "卡密已删除" };
 }

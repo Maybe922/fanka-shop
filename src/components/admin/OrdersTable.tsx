@@ -20,6 +20,7 @@ export function OrdersTable({ orders }: { orders: AdminOrder[] }) {
             <th className="px-4 py-3 font-medium">金额</th>
             <th className="px-4 py-3 font-medium">状态</th>
             <th className="px-4 py-3 font-medium">订单号</th>
+            <th className="px-4 py-3 font-medium">卡密</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-line">
@@ -33,8 +34,17 @@ export function OrdersTable({ orders }: { orders: AdminOrder[] }) {
               <td className="px-4 py-3">
                 <OrderBadge order={o} />
               </td>
-              <td className="px-4 py-3 font-mono text-xs text-muted">
+              <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-muted">
                 {o.trade_order_id}
+              </td>
+              <td className="px-4 py-3">
+                {o.status === "paid" && o.card_secret ? (
+                  <code className="select-all rounded bg-bg px-2 py-1 font-mono text-xs">
+                    {o.card_secret}
+                  </code>
+                ) : (
+                  <span className="text-xs text-muted">—</span>
+                )}
               </td>
             </tr>
           ))}

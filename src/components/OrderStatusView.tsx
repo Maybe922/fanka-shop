@@ -5,9 +5,10 @@ import type { OrderStatusPayload } from "@/lib/types";
 
 type Props = {
   orderId: string;
+  usageNotes?: string | null;
 };
 
-export function OrderStatusView({ orderId }: Props) {
+export function OrderStatusView({ orderId, usageNotes }: Props) {
   const [data, setData] = useState<OrderStatusPayload | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -86,23 +87,63 @@ export function OrderStatusView({ orderId }: Props) {
   }
 
   return (
-    <div className="rounded-card border border-ok/30 bg-ok/5 p-6">
-      <p className="text-sm font-semibold text-ok">支付成功，卡密已发放</p>
-      <div className="mt-4 flex items-center gap-3">
-        <code className="flex-1 break-all rounded-lg border border-line bg-surface px-4 py-3 font-mono text-sm">
-          {data.secret}
-        </code>
-        <button
-          onClick={() => handleCopy(data.secret as string)}
-          className="shrink-0 rounded-lg bg-ink px-4 py-3 text-sm font-medium text-white transition-opacity hover:opacity-90"
-        >
-          {copied ? "已复制" : "复制"}
-        </button>
+    <>
+      <div className="rounded-card border border-ok/30 bg-ok/5 p-6">
+        <p className="text-sm font-semibold text-ok">支付成功，卡密已发放</p>
+        <div className="mt-4 flex items-center gap-3">
+          <code className="flex-1 break-all rounded-lg border border-line bg-surface px-4 py-3 font-mono text-sm">
+            {data.secret}
+          </code>
+          <button
+            onClick={() => handleCopy(data.secret as string)}
+            className="shrink-0 rounded-lg bg-ink px-4 py-3 text-sm font-medium text-white transition-opacity hover:opacity-90"
+          >
+            {copied ? "已复制" : "复制"}
+          </button>
+        </div>
+        <p className="mt-3 text-xs text-muted">
+          请妥善保存卡密。建议截图本页，卡密仅发放一次。
+        </p>
       </div>
-      <p className="mt-3 text-xs text-muted">
-        请妥善保存卡密。建议截图本页，卡密仅发放一次。
-      </p>
-    </div>
+
+      <UsageGuide notes={usageNotes} />
+    </>
+  );
+}
+
+function UsageGuide({ notes }: { notes?: string | null }) {
+  if (!notes || !notes.trim()) return null;
+  return (
+    <section className="mt-5 overflow-hidden rounded-card border border-line bg-surface">
+      <div className="flex items-center gap-2 border-b border-line bg-bg/40 px-6 py-3.5">
+        <BookIcon />
+        <h2 className="text-sm font-semibold tracking-tight">使用教程</h2>
+        <span className="ml-auto font-mono text-[10px] uppercase tracking-[0.16em] text-muted">
+          how to use
+        </span>
+      </div>
+      <div className="whitespace-pre-line px-6 py-5 text-sm leading-relaxed text-ink/80">
+        {notes}
+      </div>
+    </section>
+  );
+}
+
+function BookIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      className="h-4 w-4 text-accent"
+      aria-hidden
+    >
+      <path
+        d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v15H5.5A1.5 1.5 0 0 0 4 20.5V5.5ZM20 5.5A1.5 1.5 0 0 0 18.5 4H13v15h5.5a1.5 1.5 0 0 1 1.5 1.5V5.5Z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 

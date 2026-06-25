@@ -16,10 +16,22 @@ export default async function OrderPage({
   const supabase = createServiceClient();
   const { data: order } = await supabase
     .from("orders")
-    .select("trade_order_id")
+    .select("trade_order_id, product_id")
     .eq("id", id)
     .single();
   const orderNo = order?.trade_order_id ?? id;
+
+  // 该商品的使用说明（后台可编辑）。字段未建好时容错为 null，不影响页面。
+  let usageNotes: string | null = null;
+  if (order?.product_id) {
+    const { data: product } = await supabase
+      .from("products")
+      .select("usage_notes")
+      .eq("id", order.product_id)
+      .single();
+    usageNotes =
+      (product as { usage_notes?: string | null } | null)?.usage_notes ?? null;
+  }
 
   return (
     <>
@@ -30,7 +42,7 @@ export default async function OrderPage({
           <p className="mt-1.5 font-mono text-xs text-muted">订单号 {orderNo}</p>
 
           <div className="mt-8">
-            <OrderStatusView orderId={id} />
+            <OrderStatusView orderId={id} usageNotes={usageNotes} />
           </div>
 
           <Link

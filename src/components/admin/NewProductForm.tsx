@@ -22,6 +22,17 @@ export function NewProductForm() {
             placeholder="一句话描述，支持换行"
           />
         </label>
+        <label className="sm:col-span-2">
+          <span className={labelClass}>
+            使用说明 / 教程（买家付款后在订单页看到，可留空）
+          </span>
+          <textarea
+            name="usageNotes"
+            rows={4}
+            className={`${fieldClass} font-mono`}
+            placeholder={"1. 前往充值站 https://...\n2. 输入卡密与 Token\n3. 一键充值到你的账号"}
+          />
+        </label>
         <label>
           <span className={labelClass}>价格（元）</span>
           <input

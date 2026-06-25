@@ -1,13 +1,9 @@
-import {
-  updateProduct,
-  deleteProduct,
-  addCards,
-  updateCardSecret,
-  deleteCard,
-} from "@/app/admin/actions";
+import { updateProduct, deleteProduct } from "@/app/admin/actions";
 import { centsToYuanString } from "@/lib/money";
 import type { ProductWithStock, AdminCard } from "@/lib/types";
 import { fieldClass, labelClass } from "./form-styles";
+import { CardRow } from "./CardRow";
+import { StockForm } from "./StockForm";
 
 export function AdminProductCard({
   product,
@@ -16,6 +12,9 @@ export function AdminProductCard({
   product: ProductWithStock;
   cards: AdminCard[];
 }) {
+  // 已售卡密移到「最近订单」展示/换货，这里只管未售 + 占用中的可用库存。
+  const manageable = cards.filter((c) => c.status !== "sold");
+
   return (
     <div className="rounded-card border border-line bg-surface p-5">
       <div className="flex items-start justify-between gap-3">
@@ -56,6 +55,20 @@ export function AdminProductCard({
             rows={2}
             defaultValue={product.description ?? ""}
             className={fieldClass}
+          />
+        </label>
+        <label className="col-span-2">
+          <span className={labelClass}>
+            使用说明 / 教程（买家付款后在订单页看到，支持换行）
+          </span>
+          <textarea
+            name="usageNotes"
+            rows={5}
+            defaultValue={product.usage_notes ?? ""}
+            className={`${fieldClass} font-mono`}
+            placeholder={
+              "示例：\n1. 前往充值站 https://...\n2. 输入卡密与 Token\n3. 一键充值到你的账号\n\n如遇问题联系客服。"
+            }
           />
         </label>
         <label>
@@ -100,91 +113,27 @@ export function AdminProductCard({
       <details className="mt-4 border-t border-line pt-4">
         <summary className="cursor-pointer select-none text-sm font-medium text-ink">
           管理卡密
-          <span className="ml-1 text-muted">（共 {cards.length} 张）</span>
+          <span className="ml-1 text-muted">（可用 {manageable.length} 张）</span>
         </summary>
 
-        {cards.length === 0 ? (
+        {manageable.length === 0 ? (
           <p className="mt-2 text-xs text-muted">
-            暂无卡密，用下方「进货」添加。
+            暂无可用卡密，用下方「进货」添加。
           </p>
         ) : (
           <ul className="mt-3 space-y-2">
-            {cards.map((card) => (
-              <li key={card.id} className="flex items-center gap-2">
-                <span
-                  className={`shrink-0 rounded px-1.5 py-0.5 text-[11px] font-medium ${
-                    card.status === "unsold"
-                      ? "bg-ok/10 text-ok"
-                      : "bg-line text-muted"
-                  }`}
-                  title={
-                    card.status === "sold" && card.sold_at
-                      ? `售出于 ${new Date(card.sold_at).toLocaleString("zh-CN")}`
-                      : undefined
-                  }
-                >
-                  {card.status === "unsold" ? "未售" : "已售"}
-                </span>
-
-                <form
-                  action={updateCardSecret}
-                  className="flex flex-1 items-center gap-1.5"
-                >
-                  <input type="hidden" name="cardId" value={card.id} />
-                  <input
-                    name="secret"
-                    defaultValue={card.secret}
-                    required
-                    className="w-full rounded-lg border border-line bg-bg px-2.5 py-1 font-mono text-xs outline-none focus:border-accent"
-                  />
-                  <button
-                    type="submit"
-                    className="shrink-0 rounded-lg border border-line px-2.5 py-1 text-xs text-muted transition-colors hover:border-accent hover:text-accent"
-                  >
-                    保存
-                  </button>
-                </form>
-
-                {card.status === "unsold" ? (
-                  <form action={deleteCard}>
-                    <input type="hidden" name="cardId" value={card.id} />
-                    <button
-                      type="submit"
-                      className="shrink-0 rounded-lg border border-line px-2.5 py-1 text-xs text-muted transition-colors hover:border-warn hover:text-warn"
-                    >
-                      删除
-                    </button>
-                  </form>
-                ) : (
-                  <span className="w-[3.25rem] shrink-0" aria-hidden />
-                )}
-              </li>
+            {manageable.map((card) => (
+              <CardRow key={card.id} card={card} />
             ))}
           </ul>
         )}
         <p className="mt-2 text-[11px] text-muted">
-          已售卡密不可删除；如该卡出问题，直接改内容即可换货（买家订单页会显示新值）。
+          已售出的卡密在下方「最近订单」里查看；如出问题可在订单行直接改内容换货。
         </p>
       </details>
 
       {/* 进货卡密 */}
-      <form action={addCards} className="mt-4 border-t border-line pt-4">
-        <input type="hidden" name="productId" value={product.id} />
-        <span className={labelClass}>进货卡密（每行一个）</span>
-        <textarea
-          name="secrets"
-          rows={3}
-          required
-          className={`${fieldClass} font-mono`}
-          placeholder={"CARD-AAAA-1111\nCARD-BBBB-2222"}
-        />
-        <button
-          type="submit"
-          className="mt-2 rounded-lg border border-accent px-4 py-2 text-sm font-medium text-accent transition-colors hover:bg-accent hover:text-white"
-        >
-          进货
-        </button>
-      </form>
+      <StockForm productId={product.id} />
     </div>
   );
 }

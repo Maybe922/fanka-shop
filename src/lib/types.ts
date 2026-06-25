@@ -15,6 +15,7 @@ export interface ProductWithStock {
   id: string;
   name: string;
   description: string | null;
+  usage_notes: string | null;
   price_cents: number;
   is_active: boolean;
   sort_order: number;
@@ -28,7 +29,7 @@ export interface AdminCard {
   id: string;
   product_id: string;
   secret: string;
-  status: "unsold" | "sold";
+  status: "unsold" | "reserved" | "sold";
   order_id: string | null;
   sold_at: string | null;
   created_at: string;
@@ -42,6 +43,7 @@ export interface AdminOrder {
   amount_cents: number;
   status: OrderState;
   card_id: string | null;
+  card_secret: string | null; // 该订单发出的卡密内容（后台最近订单展示/换货）
   paid_at: string | null;
   created_at: string;
 }

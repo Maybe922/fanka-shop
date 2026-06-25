@@ -11,6 +11,7 @@ create table if not exists products (
   id          uuid primary key default gen_random_uuid(),
   name        text not null,
   description text,
+  usage_notes text,                                      -- 使用教程/说明（订单页展示，后台编辑）
   price_cents integer not null check (price_cents >= 0), -- 价格（分）
   is_active   boolean not null default true,             -- 是否上架
   sort_order  integer not null default 0,
@@ -44,6 +45,7 @@ create table if not exists orders (
 );
 
 -- 兼容已存在的表：补列、放宽 status 取值（幂等）。
+alter table products add column if not exists usage_notes text;
 alter table orders add column if not exists user_id uuid references auth.users(id) on delete set null;
 alter table orders add column if not exists email text;
 alter table orders add column if not exists pay_code text;
@@ -221,7 +223,10 @@ where p.is_active = true
 order by p.sort_order, p.created_at;
 
 -- Admin view with stock + sold counts (read via service role only).
-create or replace view product_stock
+-- drop + create（而非 create or replace）：日后给 products 增列时，新列经 p.*
+-- 会落在 stock 列的位置上，create or replace 会因"列改名"报错；重建可绕开。
+drop view if exists product_stock;
+create view product_stock
 with (security_invoker = false) as
 select
   p.*,

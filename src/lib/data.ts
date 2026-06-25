@@ -63,7 +63,7 @@ export async function getRecentOrders(limit = 50): Promise<AdminOrder[]> {
   const { data, error } = await supabase
     .from("orders")
     .select(
-      "id, product_id, trade_order_id, amount_cents, status, card_id, paid_at, created_at, products(name)",
+      "id, product_id, trade_order_id, amount_cents, status, card_id, paid_at, created_at, products(name), cards(secret)",
     )
     .order("created_at", { ascending: false })
     .limit(limit);
@@ -74,6 +74,10 @@ export async function getRecentOrders(limit = 50): Promise<AdminOrder[]> {
     const productName = Array.isArray(product)
       ? (product[0]?.name ?? null)
       : (product?.name ?? null);
+    const card = row.cards as { secret: string } | { secret: string }[] | null;
+    const cardSecret = Array.isArray(card)
+      ? (card[0]?.secret ?? null)
+      : (card?.secret ?? null);
     return {
       id: row.id,
       product_id: row.product_id,
@@ -82,6 +86,7 @@ export async function getRecentOrders(limit = 50): Promise<AdminOrder[]> {
       amount_cents: row.amount_cents,
       status: row.status,
       card_id: row.card_id,
+      card_secret: cardSecret,
       paid_at: row.paid_at,
       created_at: row.created_at,
     } satisfies AdminOrder;
@@ -114,6 +119,7 @@ export async function getMyOrders(userId: string): Promise<AdminOrder[]> {
       amount_cents: row.amount_cents,
       status: row.status,
       card_id: row.card_id,
+      card_secret: null, // 订单中心列表不展示卡密（买家在订单详情页查看）
       paid_at: row.paid_at,
       created_at: row.created_at,
     } satisfies AdminOrder;

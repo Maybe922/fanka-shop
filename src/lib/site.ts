@@ -1,6 +1,6 @@
 // One place to edit your store's name + copy + support contacts.
 export const site = {
-  name: "双吉ai汉堡",
+  name: "双吉AI",
   tagline: "付款后自动发卡 · 即买即用",
   logoUrl:
     "https://dtetbnnhdldloetfdakr.supabase.co/storage/v1/object/public/product-images/logo-burger.png",

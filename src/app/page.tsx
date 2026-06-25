@@ -198,14 +198,9 @@ export default async function Home() {
       <footer className="border-t border-line bg-surface">
         <div className="mx-auto flex max-w-6xl flex-col gap-2 px-5 py-9 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2.5">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={site.logoUrl}
-              alt={site.name}
-              width={28}
-              height={28}
-              className="h-7 w-7 rounded-[6px] object-contain"
-            />
+            <span className="grid h-7 w-7 place-items-center rounded-[6px] bg-ink font-mono text-[13px] font-bold text-bg">
+              双
+            </span>
             <span className="text-sm font-semibold">{site.name}</span>
           </div>
           <p className="font-mono text-[12px] text-muted">

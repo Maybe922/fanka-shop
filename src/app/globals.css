@@ -129,12 +129,12 @@ body::before {
   width: 7px;
   height: 7px;
   border-radius: 9999px;
-  background: var(--color-accent);
+  background: var(--color-ok);
   animation: livepulse 1.8s ease-out infinite;
 }
 @keyframes livepulse {
   0% {
-    box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-accent) 55%, transparent);
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-ok) 55%, transparent);
   }
   70% {
     box-shadow: 0 0 0 7px transparent;

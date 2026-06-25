@@ -28,6 +28,13 @@ const productSchema = z.object({
   name: z.string().trim().min(1, "请输入商品名称").max(120),
   description: z.string().trim().max(2000).optional().default(""),
   usageNotes: z.string().trim().max(8000).optional().default(""),
+  imageUrl: z
+    .string()
+    .trim()
+    .max(2000)
+    .refine((v) => v === "" || /^https?:\/\//i.test(v), "图片链接需以 http(s):// 开头")
+    .optional()
+    .default(""),
   priceYuan: z.coerce.number().min(0, "价格不能为负"),
   sortOrder: z.coerce.number().int().default(0),
 });
@@ -38,19 +45,22 @@ export async function createProduct(formData: FormData): Promise<void> {
     name: formData.get("name"),
     description: formData.get("description"),
     usageNotes: formData.get("usageNotes"),
+    imageUrl: formData.get("imageUrl"),
     priceYuan: formData.get("priceYuan"),
     sortOrder: formData.get("sortOrder") || 0,
   });
   if (!parsed.success) {
     redirect("/admin?error=" + encodeURIComponent(parsed.error.issues[0].message));
   }
-  const { name, description, usageNotes, priceYuan, sortOrder } = parsed.data;
+  const { name, description, usageNotes, imageUrl, priceYuan, sortOrder } =
+    parsed.data;
 
   const supabase = createServiceClient();
   const { error } = await supabase.from("products").insert({
     name,
     description: description || null,
     usage_notes: usageNotes || null,
+    image_url: imageUrl || null,
     price_cents: yuanToCents(priceYuan),
     sort_order: sortOrder,
   });
@@ -72,6 +82,7 @@ export async function updateProduct(formData: FormData): Promise<void> {
     name: formData.get("name"),
     description: formData.get("description"),
     usageNotes: formData.get("usageNotes"),
+    imageUrl: formData.get("imageUrl"),
     priceYuan: formData.get("priceYuan"),
     sortOrder: formData.get("sortOrder") || 0,
     isActive: formData.get("isActive") === "on",
@@ -79,7 +90,7 @@ export async function updateProduct(formData: FormData): Promise<void> {
   if (!parsed.success) {
     redirect("/admin?error=" + encodeURIComponent(parsed.error.issues[0].message));
   }
-  const { id, name, description, usageNotes, priceYuan, sortOrder, isActive } =
+  const { id, name, description, usageNotes, imageUrl, priceYuan, sortOrder, isActive } =
     parsed.data;
 
   const supabase = createServiceClient();
@@ -89,6 +100,7 @@ export async function updateProduct(formData: FormData): Promise<void> {
       name,
       description: description || null,
       usage_notes: usageNotes || null,
+      image_url: imageUrl || null,
       price_cents: yuanToCents(priceYuan),
       sort_order: sortOrder,
       is_active: isActive,

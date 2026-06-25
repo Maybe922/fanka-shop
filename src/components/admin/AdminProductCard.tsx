@@ -58,6 +58,24 @@ export function AdminProductCard({
           />
         </label>
         <label className="col-span-2">
+          <span className={labelClass}>商品图片链接（http(s) 开头，可留空）</span>
+          <input
+            name="imageUrl"
+            type="url"
+            defaultValue={product.image_url ?? ""}
+            className={fieldClass}
+            placeholder="https://example.com/cover.png"
+          />
+          {product.image_url && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={product.image_url}
+              alt="当前图片"
+              className="mt-2 h-20 w-auto rounded-lg border border-line object-cover"
+            />
+          )}
+        </label>
+        <label className="col-span-2">
           <span className={labelClass}>
             使用说明 / 教程（买家付款后在订单页看到，支持换行）
           </span>

@@ -7,6 +7,19 @@ export function ProductCard({ product }: { product: PublicProduct }) {
 
   return (
     <article className="ticket group relative flex flex-col rounded-card border border-line bg-surface shadow-[0_1px_0_rgba(0,0,0,0.02)] transition-all duration-300 hover:-translate-y-1 hover:border-ink/25 hover:shadow-[0_18px_40px_-22px_rgba(27,23,19,0.4)]">
+      {/* 封面图（有才显示） */}
+      {product.image_url && (
+        <div className="overflow-hidden rounded-t-card border-b border-line bg-sunken">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={product.image_url}
+            alt={product.name}
+            loading="lazy"
+            className="aspect-[16/9] w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+          />
+        </div>
+      )}
+
       {/* 票根头部 */}
       <div className="flex items-start justify-between gap-3 px-5 pb-4 pt-5">
         <div className="min-w-0">

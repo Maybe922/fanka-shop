@@ -23,6 +23,15 @@ export function NewProductForm() {
           />
         </label>
         <label className="sm:col-span-2">
+          <span className={labelClass}>商品图片链接（可留空，填 http(s) 开头的图片网址）</span>
+          <input
+            name="imageUrl"
+            type="url"
+            className={fieldClass}
+            placeholder="https://example.com/cover.png"
+          />
+        </label>
+        <label className="sm:col-span-2">
           <span className={labelClass}>
             使用说明 / 教程（买家付款后在订单页看到，可留空）
           </span>

@@ -8,6 +8,7 @@ export interface PublicProduct {
   price_cents: number;
   sort_order: number;
   stock: number;
+  image_url: string | null;
 }
 
 // Full product row + stock counts, used by the admin panel.
@@ -16,6 +17,7 @@ export interface ProductWithStock {
   name: string;
   description: string | null;
   usage_notes: string | null;
+  image_url: string | null;
   price_cents: number;
   is_active: boolean;
   sort_order: number;

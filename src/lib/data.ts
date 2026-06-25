@@ -17,7 +17,7 @@ export async function getPublicProducts(): Promise<PublicProduct[]> {
     const supabase = createPublicClient();
     const { data, error } = await supabase
       .from("public_products")
-      .select("id, name, description, price_cents, sort_order, stock");
+      .select("id, name, description, price_cents, sort_order, stock, image_url");
     if (error) {
       console.error("[getPublicProducts]", error.message);
       return [];

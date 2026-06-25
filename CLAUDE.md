@@ -40,11 +40,13 @@ npx tsc --noEmit # 单独类型检查
 **虎皮椒集成全部隔离在 `lib/xunhupay.ts`** —— 不同商户的接口/签名细节有差异，要调就只改这一个文件。签名 = 非空参数按 key 升序拼 `k=v&k=v` 后直接追加 secret 再 MD5。
 > ⚠️ `wap_url` 必须是**站点根地址**（`new URL(returnUrl).origin`），虎皮椒对它有长度限制，塞入带 UUID 的逐单 return_url 会返回「系统内部错误」。
 
-**后台鉴权（`lib/admin-auth.ts`）：** 无用户表。`ADMIN_PASSWORD` 校验通过后，写一个 HMAC(SESSION_SECRET) 的 httpOnly cookie 作为会话；server action 用 `assertAuthed()` 守卫。
+**鉴权（统一走 Supabase Auth 邮箱验证码登录）：** 买家与后台**共用同一套登录态**，无密码。
+- 登录：`/login` 邮箱 OTP（`signInWithOtp` + `verifyOtp`，server actions）。会话 cookie 由 `lib/supabase/auth-server.ts` 的 `createAuthClient()` 读写，`proxy.ts` 每请求刷新。当前买家用 `getBuyer()`（内部 `auth.getUser()`，校验 JWT 不可伪造）。
+- 后台权限 = 登录邮箱在 `ADMIN_EMAILS` 白名单内（`lib/admin-auth.ts` 的 `isAdminEmail()` / `isAdmin()`）。`/admin` 页面与每个 server action 都校验：未登录跳 `/login?next=/admin`，已登录非管理员跳 `/`。`/admin/login` 仅保留为兼容旧链接的重定向。
 
 **金额一律存「分」**（`price_cents`/`amount_cents`），展示/虎皮椒交互用 `lib/money.ts` 转「元」。
 
-**环境变量**（`lib/env.ts`）：客户端只读 `publicEnv`（`NEXT_PUBLIC_*`）；服务端机密用 `requireServerEnv(name)`（缺失即抛错）。必需：`NEXT_PUBLIC_SUPABASE_URL`、`NEXT_PUBLIC_SUPABASE_ANON_KEY`、`SUPABASE_SERVICE_ROLE_KEY`、`XUNHU_APPID`、`XUNHU_APPSECRET`、`ADMIN_PASSWORD`、`SESSION_SECRET`、`NEXT_PUBLIC_SITE_URL`。新版 Supabase key（`sb_publishable_`/`sb_secret_`）可分别当 anon/service_role 用。
+**环境变量**（`lib/env.ts`）：客户端只读 `publicEnv`（`NEXT_PUBLIC_*`）；服务端机密用 `requireServerEnv(name)`（缺失即抛错）。必需：`NEXT_PUBLIC_SUPABASE_URL`、`NEXT_PUBLIC_SUPABASE_ANON_KEY`、`SUPABASE_SERVICE_ROLE_KEY`、`XUNHU_APPID`、`XUNHU_APPSECRET`、`ADMIN_EMAILS`（后台管理员邮箱白名单，逗号分隔）、`NEXT_PUBLIC_SITE_URL`。新版 Supabase key（`sb_publishable_`/`sb_secret_`）可分别当 anon/service_role 用。买家登录的 OTP/SMTP/邮件模板在 **Supabase 后台**配置（不在代码或 env 里）。
 
 ## 数据库部署注意
 

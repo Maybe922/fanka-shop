@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { isAuthenticated } from "@/lib/admin-auth";
+import { isAdminEmail } from "@/lib/admin-auth";
+import { getBuyer } from "@/lib/supabase/auth-server";
 import { getAdminProducts, getRecentOrders, getAllCards } from "@/lib/data";
 import type { AdminCard } from "@/lib/types";
-import { logoutAction } from "./actions";
+import { signOut } from "@/app/login/actions";
 import { NewProductForm } from "@/components/admin/NewProductForm";
 import { AdminProductCard } from "@/components/admin/AdminProductCard";
 import { OrdersTable } from "@/components/admin/OrdersTable";
@@ -16,9 +17,9 @@ export default async function AdminPage({
 }: {
   searchParams: Promise<{ error?: string; ok?: string }>;
 }) {
-  if (!(await isAuthenticated())) {
-    redirect("/admin/login");
-  }
+  const buyer = await getBuyer();
+  if (!buyer) redirect("/login?next=/admin");
+  if (!isAdminEmail(buyer.email)) redirect("/");
 
   const { error, ok } = await searchParams;
   const [products, orders, cards] = await Promise.all([
@@ -46,11 +47,14 @@ export default async function AdminPage({
               查看前台 ↗
             </Link>
           </div>
-          <form action={logoutAction}>
-            <button className="text-sm text-muted transition-colors hover:text-warn">
-              退出登录
-            </button>
-          </form>
+          <div className="flex items-center gap-3 text-sm text-muted">
+            <span className="hidden max-w-[12rem] truncate sm:inline">
+              {buyer.email}
+            </span>
+            <form action={signOut}>
+              <button className="transition-colors hover:text-warn">退出登录</button>
+            </form>
+          </div>
         </div>
       </header>
 

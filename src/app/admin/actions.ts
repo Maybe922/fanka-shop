@@ -3,19 +3,16 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import {
-  checkPassword,
-  createSession,
-  destroySession,
-  isAuthenticated,
-} from "@/lib/admin-auth";
+import { isAdminEmail } from "@/lib/admin-auth";
+import { getBuyer } from "@/lib/supabase/auth-server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { yuanToCents } from "@/lib/money";
 
-async function assertAuthed(): Promise<void> {
-  if (!(await isAuthenticated())) {
-    redirect("/admin/login");
-  }
+// 后台写操作守卫：未登录跳登录页，已登录但非管理员跳首页。
+async function assertAdmin(): Promise<void> {
+  const buyer = await getBuyer();
+  if (!buyer) redirect("/login?next=/admin");
+  if (!isAdminEmail(buyer.email)) redirect("/");
 }
 
 function refreshAdmin(): void {
@@ -23,21 +20,7 @@ function refreshAdmin(): void {
   revalidatePath("/");
 }
 
-// ── Auth ─────────────────────────────────────────────────────
-
-export async function loginAction(formData: FormData): Promise<void> {
-  const password = String(formData.get("password") ?? "");
-  if (!checkPassword(password)) {
-    redirect("/admin/login?error=1");
-  }
-  await createSession();
-  redirect("/admin");
-}
-
-export async function logoutAction(): Promise<void> {
-  await destroySession();
-  redirect("/admin/login");
-}
+// 登录/退出统一走买家那套（Supabase）：登录在 /login，退出用 @/app/login/actions 的 signOut。
 
 // ── Products ─────────────────────────────────────────────────
 
@@ -49,7 +32,7 @@ const productSchema = z.object({
 });
 
 export async function createProduct(formData: FormData): Promise<void> {
-  await assertAuthed();
+  await assertAdmin();
   const parsed = productSchema.safeParse({
     name: formData.get("name"),
     description: formData.get("description"),
@@ -80,7 +63,7 @@ const updateSchema = productSchema.extend({
 });
 
 export async function updateProduct(formData: FormData): Promise<void> {
-  await assertAuthed();
+  await assertAdmin();
   const parsed = updateSchema.safeParse({
     id: formData.get("id"),
     name: formData.get("name"),
@@ -112,7 +95,7 @@ export async function updateProduct(formData: FormData): Promise<void> {
 }
 
 export async function deleteProduct(formData: FormData): Promise<void> {
-  await assertAuthed();
+  await assertAdmin();
   const id = z.string().uuid().safeParse(formData.get("id"));
   if (!id.success) redirect("/admin?error=参数错误");
 
@@ -132,7 +115,7 @@ const addCardsSchema = z.object({
 });
 
 export async function addCards(formData: FormData): Promise<void> {
-  await assertAuthed();
+  await assertAdmin();
   const parsed = addCardsSchema.safeParse({
     productId: formData.get("productId"),
     secrets: formData.get("secrets"),
@@ -174,7 +157,7 @@ const updateCardSchema = z.object({
 // 改卡密内容。已售卡也可改——订单页实时读 cards.secret，
 // 改完买家刷新即看到新值（用于更换出问题的卡密）。
 export async function updateCardSecret(formData: FormData): Promise<void> {
-  await assertAuthed();
+  await assertAdmin();
   const parsed = updateCardSchema.safeParse({
     cardId: formData.get("cardId"),
     secret: formData.get("secret"),
@@ -197,7 +180,7 @@ export async function updateCardSecret(formData: FormData): Promise<void> {
 // 删除单张卡密。仅允许删未售的——已售卡被订单引用，删除会破坏订单记录，
 // 如需处理已售出的问题卡，请改它的内容（换货）而非删除。
 export async function deleteCard(formData: FormData): Promise<void> {
-  await assertAuthed();
+  await assertAdmin();
   const id = z.string().uuid().safeParse(formData.get("cardId"));
   if (!id.success) redirect("/admin?error=参数错误");
 

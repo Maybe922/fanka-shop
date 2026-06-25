@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { site } from "@/lib/site";
 import { getBuyer } from "@/lib/supabase/auth-server";
+import { isAdminEmail } from "@/lib/admin-auth";
 import { signOut } from "@/app/login/actions";
 
 export async function SiteHeader() {
   const buyer = await getBuyer();
+  const admin = isAdminEmail(buyer?.email);
 
   return (
     <header className="border-b border-line/80">
@@ -22,6 +24,11 @@ export async function SiteHeader() {
           </a>
           {buyer ? (
             <div className="flex items-center gap-3">
+              {admin && (
+                <Link href="/admin" className="transition-colors hover:text-ink">
+                  后台
+                </Link>
+              )}
               <span className="hidden max-w-[12rem] truncate text-ink sm:inline">
                 {buyer.email}
               </span>

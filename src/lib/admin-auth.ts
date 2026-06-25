@@ -1,46 +1,23 @@
-import crypto from "node:crypto";
-import { cookies } from "next/headers";
-import { requireServerEnv } from "@/lib/env";
+import { getBuyer } from "@/lib/supabase/auth-server";
 
-const COOKIE_NAME = "fk_admin";
-const MAX_AGE = 60 * 60 * 24 * 7; // 7 days
-
-function sessionToken(): string {
-  const secret = requireServerEnv("SESSION_SECRET");
-  return crypto.createHmac("sha256", secret).update("admin-v1").digest("hex");
+// 后台管理员 = 登录邮箱在 ADMIN_EMAILS 白名单内（逗号分隔，可多个）。
+// 不再用密码：靠 Supabase 邮箱验证码确认邮箱所有权 —— 既安全又免去记密码。
+// 后台与买家共用同一套 Supabase 登录态，仅凭邮箱区分权限。
+export function adminEmails(): string[] {
+  return (process.env.ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
 }
 
-function safeEqual(a: string, b: string): boolean {
-  const ab = Buffer.from(a);
-  const bb = Buffer.from(b);
-  if (ab.length !== bb.length) return false;
-  return crypto.timingSafeEqual(ab, bb);
+// 纯函数：某邮箱是否为管理员。
+export function isAdminEmail(email: string | null | undefined): boolean {
+  if (!email) return false;
+  return adminEmails().includes(email.toLowerCase());
 }
 
-export function checkPassword(input: string): boolean {
-  const expected = requireServerEnv("ADMIN_PASSWORD");
-  return safeEqual(input, expected);
-}
-
-export async function createSession(): Promise<void> {
-  const store = await cookies();
-  store.set(COOKIE_NAME, sessionToken(), {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: MAX_AGE,
-  });
-}
-
-export async function destroySession(): Promise<void> {
-  const store = await cookies();
-  store.delete(COOKIE_NAME);
-}
-
-export async function isAuthenticated(): Promise<boolean> {
-  const store = await cookies();
-  const value = store.get(COOKIE_NAME)?.value;
-  if (!value) return false;
-  return safeEqual(value, sessionToken());
+// 当前请求是否为管理员（已登录 + 邮箱在白名单内）。
+export async function isAdmin(): Promise<boolean> {
+  const buyer = await getBuyer();
+  return isAdminEmail(buyer?.email);
 }

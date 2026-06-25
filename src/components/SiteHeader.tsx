@@ -15,7 +15,7 @@ export async function SiteHeader() {
         {/* 品牌：方块标记 + 字号商标 */}
         <Link href="/" className="group flex items-center gap-2.5">
           <span className="grid h-7 w-7 place-items-center rounded-[6px] bg-ink font-mono text-sm font-bold text-bg transition-transform group-hover:-rotate-6">
-            发
+            双
           </span>
           <span className="flex flex-col leading-none">
             <span className="text-[15px] font-semibold tracking-tight">

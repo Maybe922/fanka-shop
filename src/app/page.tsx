@@ -182,7 +182,7 @@ export default async function Home() {
         <div className="mx-auto flex max-w-6xl flex-col gap-2 px-5 py-9 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2.5">
             <span className="grid h-6 w-6 place-items-center rounded-[5px] bg-ink font-mono text-xs font-bold text-bg">
-              发
+              双
             </span>
             <span className="text-sm font-semibold">{site.name}</span>
           </div>

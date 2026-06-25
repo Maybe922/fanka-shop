@@ -1,7 +1,10 @@
 import { createServiceClient } from "@/lib/supabase/server";
+import { queryXunhuOrder } from "@/lib/xunhupay";
 import type { OrderStatusPayload } from "@/lib/types";
 
 export const runtime = "nodejs";
+
+const ORDER_COLS = "id, status, card_id, product_id, expires_at, trade_order_id";
 
 // GET /api/orders/:id → order status (+ card secret once paid)
 export async function GET(
@@ -13,7 +16,7 @@ export async function GET(
 
   let { data: order } = await supabase
     .from("orders")
-    .select("id, status, card_id, product_id, expires_at")
+    .select(ORDER_COLS)
     .eq("id", id)
     .single();
 
@@ -30,10 +33,26 @@ export async function GET(
     await supabase.rpc("expire_stale_orders");
     const { data: refreshed } = await supabase
       .from("orders")
-      .select("id, status, card_id, product_id, expires_at")
+      .select(ORDER_COLS)
       .eq("id", id)
       .single();
     if (refreshed) order = refreshed;
+  }
+
+  // 仍待支付 → 主动向虎皮椒查单（不依赖回调能否打进来）。已付则立即发卡。
+  if (order.status === "pending" && order.trade_order_id) {
+    const q = await queryXunhuOrder(order.trade_order_id);
+    if (q.paid) {
+      await supabase.rpc("deliver_order", {
+        p_trade_order_id: order.trade_order_id,
+      });
+      const { data: refreshed } = await supabase
+        .from("orders")
+        .select(ORDER_COLS)
+        .eq("id", id)
+        .single();
+      if (refreshed) order = refreshed;
+    }
   }
 
   let secret: string | null = null;

@@ -8,6 +8,7 @@ import { requireServerEnv } from "@/lib/env";
 // isolated to this file on purpose.
 
 const DEFAULT_API_URL = "https://api.xunhupay.com/payment/do.html";
+const DEFAULT_QUERY_URL = "https://api.xunhupay.com/payment/query.html";
 
 /**
  * Signature: sort all non-empty params (excluding `hash`) by key ascending,
@@ -106,6 +107,55 @@ export async function createXunhuOrder(
     qrCode,
     raw: data,
   };
+}
+
+export interface QueryOrderResult {
+  paid: boolean; // 虎皮椒 status === "OD"
+  status: string | null;
+  raw: unknown;
+}
+
+/**
+ * 主动查单：问虎皮椒「这笔订单付了没」。
+ *
+ * 为什么需要它：虎皮椒的异步回调（notify）由它的国内服务器发起，打不到
+ * 部署在 Vercel（.vercel.app 国内不可达）的 /api/notify。所以改为我方
+ * 主动出站查询 —— 出站请求不受影响，发卡不再依赖回调能否打进来。
+ */
+export async function queryXunhuOrder(
+  tradeOrderId: string,
+): Promise<QueryOrderResult> {
+  const appid = requireServerEnv("XUNHU_APPID");
+  const secret = requireServerEnv("XUNHU_APPSECRET");
+  const apiUrl = process.env.XUNHU_QUERY_URL ?? DEFAULT_QUERY_URL;
+
+  const params: Record<string, string | number> = {
+    appid,
+    out_trade_order: tradeOrderId,
+    time: Math.floor(Date.now() / 1000),
+    nonce_str: crypto.randomBytes(8).toString("hex"),
+  };
+  params.hash = xunhuSign(params, secret);
+
+  const body = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) body.append(k, String(v));
+
+  try {
+    const res = await fetch(apiUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body,
+      cache: "no-store",
+    });
+    const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+    const dataObj = (data.data ?? {}) as Record<string, unknown>;
+    const status =
+      (typeof dataObj.status === "string" ? dataObj.status : null) ??
+      (typeof data.status === "string" ? data.status : null);
+    return { paid: status === "OD", status, raw: data };
+  } catch (err) {
+    return { paid: false, status: null, raw: { error: String(err) } };
+  }
 }
 
 /** Verify the async notify callback signature. */

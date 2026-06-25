@@ -1,4 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/server";
+import { getBuyer } from "@/lib/supabase/auth-server";
 import { createXunhuOrder } from "@/lib/xunhupay";
 import { centsToYuanString } from "@/lib/money";
 import { publicEnv } from "@/lib/env";
@@ -7,6 +8,12 @@ export const runtime = "nodejs";
 
 // POST /api/orders  { productId } → create an order + 虎皮椒 pay url
 export async function POST(req: Request) {
+  // 必须登录才能下单 —— 订单绑定买家身份（user_id + email），便于找回卡密。
+  const buyer = await getBuyer();
+  if (!buyer) {
+    return Response.json({ error: "请先登录" }, { status: 401 });
+  }
+
   let productId: string;
   try {
     const body = (await req.json()) as { productId?: string };
@@ -20,6 +27,9 @@ export async function POST(req: Request) {
 
   const supabase = createServiceClient();
 
+  // 先回收超时未付订单的库存，让本次下单能用上释放出来的卡。
+  await supabase.rpc("expire_stale_orders");
+
   const { data: product } = await supabase
     .from("products")
     .select("id, name, price_cents, is_active")
@@ -31,32 +41,28 @@ export async function POST(req: Request) {
     return Response.json({ error: "商品不存在或已下架" }, { status: 404 });
   }
 
-  // Stock check (final assignment is still atomic in deliver_order).
-  const { count } = await supabase
-    .from("cards")
-    .select("id", { count: "exact", head: true })
-    .eq("product_id", productId)
-    .eq("status", "unsold");
-
-  if (!count || count < 1) {
-    return Response.json({ error: "该商品暂时缺货" }, { status: 409 });
-  }
-
   const tradeOrderId = `FK${Date.now()}${Math.random().toString(36).slice(2, 8)}`;
+  const expiresAt = new Date(Date.now() + 20 * 60 * 1000).toISOString(); // 20 分钟
 
-  const { data: order, error: orderErr } = await supabase
-    .from("orders")
-    .insert({
-      product_id: productId,
-      trade_order_id: tradeOrderId,
-      amount_cents: product.price_cents,
-      status: "pending",
-    })
-    .select("id")
-    .single();
+  // 原子下单 + 预占 1 张卡（库存随之 -1）。无卡返回 null → 缺货。
+  const { data: orderId, error: reserveErr } = await supabase.rpc(
+    "create_order_reserved",
+    {
+      p_product_id: productId,
+      p_trade_order_id: tradeOrderId,
+      p_amount_cents: product.price_cents,
+      p_user_id: buyer.id,
+      p_email: buyer.email ?? null,
+      p_expires_at: expiresAt,
+    },
+  );
 
-  if (orderErr || !order) {
+  if (reserveErr) {
+    console.error("[orders] 预占失败", reserveErr.message);
     return Response.json({ error: "下单失败，请重试" }, { status: 500 });
+  }
+  if (!orderId) {
+    return Response.json({ error: "该商品暂时缺货" }, { status: 409 });
   }
 
   const siteUrl = publicEnv.siteUrl || new URL(req.url).origin;
@@ -66,13 +72,21 @@ export async function POST(req: Request) {
     totalFeeYuan: centsToYuanString(product.price_cents),
     title: product.name,
     notifyUrl: `${siteUrl}/api/notify`,
-    returnUrl: `${siteUrl}/order/${order.id}`,
+    returnUrl: `${siteUrl}/order/${orderId}`,
   });
 
   if (!result.payUrl) {
     console.error("[orders] 虎皮椒下单失败", result.raw);
+    // 回滚：释放预占的卡 + 删除订单，库存恢复。
+    await supabase.rpc("cancel_order", { p_order_id: orderId });
     return Response.json({ error: "发起支付失败，请稍后重试" }, { status: 502 });
   }
 
-  return Response.json({ orderId: order.id, payUrl: result.payUrl });
+  // 存下原始 weixin:// 支付码（自建收银台用）；解析失败存 hosted payUrl 兜底。
+  await supabase
+    .from("orders")
+    .update({ pay_code: result.qrCode ?? result.payUrl })
+    .eq("id", orderId);
+
+  return Response.json({ orderId });
 }

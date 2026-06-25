@@ -44,12 +44,36 @@ export function OrdersTable({ orders }: { orders: AdminOrder[] }) {
   );
 }
 
+function Dot({ className }: { className: string }) {
+  return <span className={`inline-block h-2 w-2 rounded-full ${className}`} />;
+}
+
 function OrderBadge({ order }: { order: AdminOrder }) {
+  // 黄=待支付 / 绿=已支付 / 红=已过期
   if (order.status === "pending") {
-    return <span className="text-muted">待支付</span>;
+    return (
+      <span className="inline-flex items-center gap-1.5 font-medium text-amber-500">
+        <Dot className="bg-amber-500" /> 待支付
+      </span>
+    );
+  }
+  if (order.status === "expired") {
+    return (
+      <span className="inline-flex items-center gap-1.5 font-medium text-red-600">
+        <Dot className="bg-red-600" /> 已过期
+      </span>
+    );
   }
   if (!order.card_id) {
-    return <span className="font-medium text-warn">已付·缺货</span>;
+    return (
+      <span className="inline-flex items-center gap-1.5 font-medium text-red-600">
+        <Dot className="bg-red-600" /> 已付·缺货
+      </span>
+    );
   }
-  return <span className="font-medium text-ok">已发卡</span>;
+  return (
+    <span className="inline-flex items-center gap-1.5 font-medium text-ok">
+      <Dot className="bg-ok" /> 已支付
+    </span>
+  );
 }

@@ -22,7 +22,8 @@ export function OrderStatusView({ orderId }: Props) {
           const payload = (await res.json()) as OrderStatusPayload;
           if (!active) return;
           setData(payload);
-          if (payload.status === "paid") return; // delivered or stock-out: stop polling
+          // 终态（已付/已过期）停止轮询
+          if (payload.status === "paid" || payload.status === "expired") return;
         }
       } catch {
         // transient network error — keep polling
@@ -59,6 +60,17 @@ export function OrderStatusView({ orderId }: Props) {
           等待支付确认，完成后这里会自动显示卡密…
         </span>
       </StatusShell>
+    );
+  }
+
+  if (data.status === "expired") {
+    return (
+      <div className="rounded-card border border-red-200 bg-red-50 p-6">
+        <p className="text-sm font-semibold text-red-600">订单已过期</p>
+        <p className="mt-1.5 text-sm leading-relaxed text-muted">
+          本单超过支付时限未完成支付，已自动取消、库存已释放。请重新下单。
+        </p>
+      </div>
     );
   }
 

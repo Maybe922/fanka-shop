@@ -40,9 +40,26 @@ export interface CreateOrderInput {
 }
 
 export interface CreateOrderResult {
-  payUrl: string | null; // hosted cashier page — redirect the buyer here
-  qrUrl: string | null;
+  payUrl: string | null; // hosted cashier page (虎皮椒 自带，丑) — fallback only
+  qrUrl: string | null; // 虎皮椒 二维码图片页（302 跳转，非图片）
+  qrCode: string | null; // 原始 weixin:// 支付链接 —— 用它自建收银台二维码
   raw: unknown;
+}
+
+// 虎皮椒 的 url_qrcode 会 302 跳到 /qrcode/{appid}.html?data=<base64(weixin://...)>。
+// 我们解出原始 weixin:// 链接，用来在自己页面生成二维码（不依赖虎皮椒的图片页）。
+async function resolveQrCode(qrUrl: string): Promise<string | null> {
+  try {
+    const res = await fetch(qrUrl, { redirect: "manual", cache: "no-store" });
+    const location = res.headers.get("location");
+    if (!location) return null;
+    const data = new URL(location).searchParams.get("data");
+    if (!data) return null;
+    const decoded = Buffer.from(data, "base64").toString("utf8");
+    return decoded.startsWith("weixin://") ? decoded : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function createXunhuOrder(
@@ -81,9 +98,12 @@ export async function createXunhuOrder(
   });
 
   const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  const qrUrl = typeof data.url_qrcode === "string" ? data.url_qrcode : null;
+  const qrCode = qrUrl ? await resolveQrCode(qrUrl) : null;
   return {
     payUrl: typeof data.url === "string" ? data.url : null,
-    qrUrl: typeof data.url_qrcode === "string" ? data.url_qrcode : null,
+    qrUrl,
+    qrCode,
     raw: data,
   };
 }

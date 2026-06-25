@@ -24,6 +24,9 @@ export async function SiteHeader() {
           </a>
           {buyer ? (
             <div className="flex items-center gap-3">
+              <Link href="/orders" className="transition-colors hover:text-ink">
+                订单中心
+              </Link>
               {admin && (
                 <Link href="/admin" className="transition-colors hover:text-ink">
                   后台

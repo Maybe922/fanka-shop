@@ -11,14 +11,29 @@ export async function GET(
   const { id } = await params;
   const supabase = createServiceClient();
 
-  const { data: order } = await supabase
+  let { data: order } = await supabase
     .from("orders")
-    .select("id, status, card_id, product_id")
+    .select("id, status, card_id, product_id, expires_at")
     .eq("id", id)
     .single();
 
   if (!order) {
     return Response.json({ error: "订单不存在" }, { status: 404 });
+  }
+
+  // 待支付且已超时 → 触发过期清理（释放预占卡），再回读最新状态。
+  if (
+    order.status === "pending" &&
+    order.expires_at &&
+    new Date(order.expires_at).getTime() < Date.now()
+  ) {
+    await supabase.rpc("expire_stale_orders");
+    const { data: refreshed } = await supabase
+      .from("orders")
+      .select("id, status, card_id, product_id, expires_at")
+      .eq("id", id)
+      .single();
+    if (refreshed) order = refreshed;
   }
 
   let secret: string | null = null;
@@ -42,6 +57,7 @@ export async function GET(
     secret,
     stockOut: order.status === "paid" && !order.card_id,
     productName: product?.name ?? "",
+    expiresAt: order.expires_at ?? null,
   };
   return Response.json(payload);
 }

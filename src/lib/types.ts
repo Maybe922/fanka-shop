@@ -1,4 +1,4 @@
-export type OrderState = "pending" | "paid";
+export type OrderState = "pending" | "paid" | "expired";
 
 // Safe columns exposed to the public landing page (no secrets).
 export interface PublicProduct {
@@ -51,4 +51,5 @@ export interface OrderStatusPayload {
   secret: string | null;
   stockOut: boolean;
   productName: string;
+  expiresAt: string | null; // 待支付超时时间（ISO），供前端倒计时
 }

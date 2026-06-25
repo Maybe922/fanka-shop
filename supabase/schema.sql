@@ -21,7 +21,7 @@ create table if not exists cards (
   id         uuid primary key default gen_random_uuid(),
   product_id uuid not null references products(id) on delete cascade,
   secret     text not null,                                -- 卡密内容
-  status     text not null default 'unsold' check (status in ('unsold','sold')),
+  status     text not null default 'unsold' check (status in ('unsold','reserved','sold')), -- 未售/已预占/已售
   order_id   uuid,
   sold_at    timestamptz,
   created_at timestamptz not null default now()
@@ -32,18 +32,131 @@ create table if not exists orders (
   product_id     uuid not null references products(id),
   trade_order_id text not null unique,                     -- 我方订单号（发给虎皮椒）
   amount_cents   integer not null,
-  status         text not null default 'pending' check (status in ('pending','paid')),
-  card_id        uuid references cards(id),                -- 发出的卡密
+  status         text not null default 'pending' check (status in ('pending','paid','expired')), -- 待支付/已支付/已过期
+  card_id        uuid references cards(id),                -- 预占/发出的卡密
+  user_id        uuid references auth.users(id) on delete set null, -- 下单买家
+  email          text,                                     -- 下单买家邮箱（冗余，便于展示/找回）
+  pay_code       text,                                     -- 虎皮椒返回的 weixin:// 支付码（自建收银台用）
+  expires_at     timestamptz,                              -- 待支付超时时间（默认下单 +20min）
   contact        text,
   paid_at        timestamptz,
   created_at     timestamptz not null default now()
 );
 
+-- 兼容已存在的表：补列、放宽 status 取值（幂等）。
+alter table orders add column if not exists user_id uuid references auth.users(id) on delete set null;
+alter table orders add column if not exists email text;
+alter table orders add column if not exists pay_code text;
+alter table orders add column if not exists expires_at timestamptz;
+
+alter table cards  drop constraint if exists cards_status_check;
+alter table cards  add  constraint cards_status_check  check (status in ('unsold','reserved','sold'));
+alter table orders drop constraint if exists orders_status_check;
+alter table orders add  constraint orders_status_check check (status in ('pending','paid','expired'));
+
 create index if not exists idx_cards_product_status on cards (product_id, status);
 create index if not exists idx_orders_created on orders (created_at desc);
+create index if not exists idx_orders_user on orders (user_id, created_at desc);
 
--- ── Atomic delivery: mark paid + assign one unsold card ─────────
--- Idempotent: a repeated callback returns the already-issued card.
+-- ── 下单即预占：原子取一张未售卡，建 pending 订单并锁定该卡 ──────
+-- 返回新订单 id；无库存返回 null（调用方据此报缺货）。库存随之 -1。
+create or replace function create_order_reserved(
+  p_product_id     uuid,
+  p_trade_order_id text,
+  p_amount_cents   integer,
+  p_user_id        uuid,
+  p_email          text,
+  p_expires_at     timestamptz
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_card_id  uuid;
+  v_order_id uuid;
+begin
+  -- 并发安全地取一张未售卡
+  select id into v_card_id
+  from cards
+  where product_id = p_product_id and status = 'unsold'
+  order by created_at
+  for update skip locked
+  limit 1;
+
+  if v_card_id is null then
+    return null; -- 缺货
+  end if;
+
+  insert into orders (product_id, trade_order_id, amount_cents, status,
+                      card_id, user_id, email, expires_at)
+  values (p_product_id, p_trade_order_id, p_amount_cents, 'pending',
+          v_card_id, p_user_id, p_email, p_expires_at)
+  returning id into v_order_id;
+
+  update cards set status = 'reserved', order_id = v_order_id where id = v_card_id;
+  return v_order_id;
+end;
+$$;
+
+-- ── 取消未支付订单：释放预占卡 + 删除订单（虎皮椒下单失败时回滚）──
+create or replace function cancel_order(p_order_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_card_id uuid;
+begin
+  select card_id into v_card_id from orders
+  where id = p_order_id and status = 'pending' for update;
+  if v_card_id is not null then
+    update cards set status = 'unsold', order_id = null
+    where id = v_card_id and status = 'reserved';
+  end if;
+  delete from orders where id = p_order_id and status = 'pending';
+end;
+$$;
+
+-- ── 过期清理：把超时未付的 pending 订单标记 expired，并释放其预占卡 ──
+-- 机会式调用（下单时 / 后台加载 / 买家轮询自己的订单时）。返回过期条数。
+create or replace function expire_stale_orders()
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_count integer;
+begin
+  -- 先把这些订单预占的卡放回库存
+  update cards c
+    set status = 'unsold', order_id = null
+  from orders o
+  where c.order_id = o.id
+    and c.status = 'reserved'
+    and o.status = 'pending'
+    and o.expires_at is not null
+    and o.expires_at < now();
+
+  -- 再把订单标记为已过期，并清掉 card_id
+  with expired as (
+    update orders
+      set status = 'expired', card_id = null
+    where status = 'pending'
+      and expires_at is not null
+      and expires_at < now()
+    returning 1
+  )
+  select count(*) into v_count from expired;
+  return v_count;
+end;
+$$;
+
+-- ── Atomic delivery: 付款回调时发卡（优先用预占卡，过期已释放则现取）──
+-- Idempotent: 重复回调返回已发卡密；过期后付款仍按已付处理并尽量发卡。
 create or replace function deliver_order(p_trade_order_id text)
 returns text
 language plpgsql
@@ -60,13 +173,22 @@ begin
     return null;
   end if;
 
-  -- already delivered
-  if v_order.card_id is not null then
+  -- 已发卡：幂等返回原卡密
+  if v_order.status = 'paid' and v_order.card_id is not null then
     select secret into v_secret from cards where id = v_order.card_id;
     return v_secret;
   end if;
 
-  -- take one unsold card for this product (concurrency-safe)
+  -- 有预占卡：直接标记售出 + 订单已付
+  if v_order.card_id is not null then
+    update cards set status = 'sold', sold_at = coalesce(sold_at, now())
+      where id = v_order.card_id and order_id = v_order.id;
+    select secret into v_secret from cards where id = v_order.card_id;
+    update orders set status = 'paid', paid_at = now() where id = v_order.id;
+    return v_secret;
+  end if;
+
+  -- 无预占卡（如已过期被释放）：现取一张未售卡（并发安全）
   select id, secret into v_card_id, v_secret
   from cards
   where product_id = v_order.product_id and status = 'unsold'
@@ -75,18 +197,12 @@ begin
   limit 1;
 
   if v_card_id is null then
-    -- paid but out of stock: mark paid, leave card null for manual handling
-    update orders set status = 'paid', paid_at = now() where id = v_order.id;
+    update orders set status = 'paid', paid_at = now() where id = v_order.id; -- 已付但缺货，待人工
     return null;
   end if;
 
-  update cards
-    set status = 'sold', order_id = v_order.id, sold_at = now()
-    where id = v_card_id;
-  update orders
-    set status = 'paid', card_id = v_card_id, paid_at = now()
-    where id = v_order.id;
-
+  update cards  set status = 'sold', order_id = v_order.id, sold_at = now() where id = v_card_id;
+  update orders set status = 'paid', card_id = v_card_id, paid_at = now() where id = v_order.id;
   return v_secret;
 end;
 $$;

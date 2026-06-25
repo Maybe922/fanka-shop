@@ -2,7 +2,12 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { isAdminEmail } from "@/lib/admin-auth";
 import { getBuyer } from "@/lib/supabase/auth-server";
-import { getAdminProducts, getRecentOrders, getAllCards } from "@/lib/data";
+import {
+  getAdminProducts,
+  getRecentOrders,
+  getAllCards,
+  expireStaleOrders,
+} from "@/lib/data";
 import type { AdminCard } from "@/lib/types";
 import { signOut } from "@/app/login/actions";
 import { NewProductForm } from "@/components/admin/NewProductForm";
@@ -20,6 +25,9 @@ export default async function AdminPage({
   const buyer = await getBuyer();
   if (!buyer) redirect("/login?next=/admin");
   if (!isAdminEmail(buyer.email)) redirect("/");
+
+  // 回收超时未付订单的库存，确保下方列表状态与库存是最新的。
+  await expireStaleOrders();
 
   const { error, ok } = await searchParams;
   const [products, orders, cards] = await Promise.all([

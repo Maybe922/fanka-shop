@@ -1,6 +1,6 @@
+import Link from "next/link";
 import { formatCny } from "@/lib/money";
 import type { PublicProduct } from "@/lib/types";
-import { BuyButton } from "./BuyButton";
 
 export function ProductCard({ product }: { product: PublicProduct }) {
   const soldOut = product.stock < 1;
@@ -25,7 +25,21 @@ export function ProductCard({ product }: { product: PublicProduct }) {
       </div>
 
       <div className="mt-4">
-        <BuyButton productId={product.id} soldOut={soldOut} />
+        {soldOut ? (
+          <button
+            disabled
+            className="w-full cursor-not-allowed rounded-xl border border-line bg-bg py-2.5 text-sm font-medium text-muted"
+          >
+            无库存
+          </button>
+        ) : (
+          <Link
+            href={`/checkout/${product.id}`}
+            className="block w-full rounded-xl bg-accent py-2.5 text-center text-sm font-semibold text-white transition-colors hover:bg-accent-hover"
+          >
+            立即购买
+          </Link>
+        )}
       </div>
     </article>
   );

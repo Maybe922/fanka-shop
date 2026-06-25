@@ -36,8 +36,8 @@ export function ProductCard({ product }: { product: PublicProduct }) {
             <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted">
               单价
             </p>
-            <p className="mt-0.5 font-mono text-[26px] font-semibold leading-none tracking-tight">
-              <span className="text-accent">¥</span>
+            <p className="mt-0.5 flex items-baseline font-mono text-[26px] font-semibold leading-[1.25] tracking-tight">
+              <span className="mr-0.5 text-accent">¥</span>
               {(product.price_cents / 100).toLocaleString("zh-CN", {
                 minimumFractionDigits: 0,
                 maximumFractionDigits: 2,

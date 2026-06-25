@@ -12,11 +12,16 @@ export async function SiteHeader() {
   return (
     <header className="sticky top-0 z-50 border-b border-line bg-bg/85 backdrop-blur-md">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3.5">
-        {/* 品牌：字号商标 */}
+        {/* 品牌：logo + 字号商标 */}
         <Link href="/" className="group flex items-center gap-2.5">
-          <span className="grid h-9 w-9 place-items-center rounded-[7px] bg-ink font-mono text-[15px] font-bold text-bg transition-transform group-hover:-rotate-6">
-            双
-          </span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={site.logoUrl}
+            alt={site.name}
+            width={36}
+            height={36}
+            className="h-9 w-9 rounded-[7px] object-contain transition-transform group-hover:-rotate-6"
+          />
           <span className="flex flex-col leading-none">
             <span className="text-[15px] font-semibold tracking-tight">
               {site.name}

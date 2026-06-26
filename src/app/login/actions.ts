@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createAuthClient } from "@/lib/supabase/auth-server";
+import { isTurnstileEnabled, verifyTurnstile } from "@/lib/turnstile";
 
 export type AuthResult = { ok: boolean; error: string | null };
 
@@ -24,9 +25,19 @@ function humanize(msg: string): string {
 }
 
 // 第一步：发送邮箱验证码。shouldCreateUser=true → 首次邮箱自动注册（无密码）。
-export async function requestOtp(email: string): Promise<AuthResult> {
+// turnstileToken：Cloudflare 人机验证 token（配置了 secret 时必校验）。
+export async function requestOtp(
+  email: string,
+  turnstileToken = "",
+): Promise<AuthResult> {
   const parsed = emailSchema.safeParse(email);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+
+  // 人机验证：拦在发邮件之前，挡掉机器人狂刷验证码。
+  if (isTurnstileEnabled()) {
+    const human = await verifyTurnstile(turnstileToken);
+    if (!human) return { ok: false, error: "人机验证未通过，请重试" };
+  }
 
   const supabase = await createAuthClient();
   const { error } = await supabase.auth.signInWithOtp({

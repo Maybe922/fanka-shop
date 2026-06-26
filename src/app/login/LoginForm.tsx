@@ -3,6 +3,8 @@
 import { useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { requestOtp, verifyOtp } from "./actions";
+import { TurnstileWidget } from "@/components/TurnstileWidget";
+import { publicEnv } from "@/lib/env";
 
 const field =
   "w-full rounded-lg border border-line bg-bg px-3 py-2.5 text-sm outline-none focus:border-accent";
@@ -16,6 +18,7 @@ function safeNext(raw: string | null): string {
 export function LoginForm() {
   const router = useRouter();
   const next = safeNext(useSearchParams().get("next"));
+  const siteKey = publicEnv.turnstileSiteKey;
 
   const [phase, setPhase] = useState<"email" | "code">("email");
   const [email, setEmail] = useState("");
@@ -23,13 +26,26 @@ export function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  // 人机验证：token 一次性；失败后 bump nonce 强制重挂 widget 拿新 token。
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaNonce, setCaptchaNonce] = useState(0);
+
+  // 配了 site key 才要求人机验证；没配则不挡。
+  const captchaRequired = Boolean(siteKey);
+  const captchaReady = !captchaRequired || Boolean(captchaToken);
+
+  function resetCaptcha() {
+    setCaptchaToken(null);
+    setCaptchaNonce((n) => n + 1);
+  }
 
   function send() {
     setError(null);
     startTransition(async () => {
-      const res = await requestOtp(email);
+      const res = await requestOtp(email, captchaToken ?? "");
       if (!res.ok) {
         setError(res.error);
+        resetCaptcha(); // token 已被消费，刷新人机验证
         return;
       }
       setPhase("code");
@@ -84,9 +100,18 @@ export function LoginForm() {
               className={`mt-1 ${field}`}
             />
           </label>
+          {captchaRequired && (
+            <TurnstileWidget
+              key={captchaNonce}
+              siteKey={siteKey}
+              onVerify={setCaptchaToken}
+              onExpire={() => setCaptchaToken(null)}
+              onError={() => setCaptchaToken(null)}
+            />
+          )}
           <button
             type="submit"
-            disabled={pending}
+            disabled={pending || !captchaReady}
             className="w-full rounded-lg bg-ink py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
           >
             {pending ? "发送中…" : "获取验证码"}
@@ -131,6 +156,7 @@ export function LoginForm() {
               setCode("");
               setError(null);
               setNotice(null);
+              resetCaptcha();
             }}
             className="w-full text-sm text-muted transition-colors hover:text-ink"
           >

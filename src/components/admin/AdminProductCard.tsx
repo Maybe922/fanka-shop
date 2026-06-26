@@ -1,9 +1,26 @@
+"use client";
+
+import { useState } from "react";
 import { updateProduct, deleteProduct } from "@/app/admin/actions";
 import { centsToYuanString } from "@/lib/money";
 import type { ProductWithStock, AdminCard } from "@/lib/types";
 import { fieldClass, labelClass } from "./form-styles";
 import { CardRow } from "./CardRow";
 import { StockForm } from "./StockForm";
+
+function Chevron({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
+      <path
+        d="m9 6 6 6-6 6"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
 
 export function AdminProductCard({
   product,
@@ -12,24 +29,39 @@ export function AdminProductCard({
   product: ProductWithStock;
   cards: AdminCard[];
 }) {
+  // 默认收起：后台商品多时保持清爽，点头部展开编辑。
+  const [open, setOpen] = useState(false);
+
   // 已售卡密移到「最近订单」展示/换货，这里只管未售 + 占用中的可用库存。
   const manageable = cards.filter((c) => c.status !== "sold");
 
   return (
     <div className="rounded-card border border-line bg-surface p-5">
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <h4 className="text-sm font-semibold">{product.name}</h4>
-          <p className="mt-1 text-xs text-muted">
-            库存 <span className="font-medium text-ok">{product.stock}</span> · 已售{" "}
-            {product.sold} ·{" "}
-            {product.is_active ? (
-              <span className="text-ok">已上架</span>
-            ) : (
-              <span className="text-warn">已下架</span>
-            )}
-          </p>
-        </div>
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          className="flex flex-1 items-start gap-2 text-left"
+        >
+          <Chevron
+            className={`mt-0.5 h-4 w-4 shrink-0 text-muted transition-transform ${
+              open ? "rotate-90" : ""
+            }`}
+          />
+          <span>
+            <span className="block text-sm font-semibold">{product.name}</span>
+            <span className="mt-1 block text-xs text-muted">
+              库存 <span className="font-medium text-ok">{product.stock}</span> · 已售{" "}
+              {product.sold} ·{" "}
+              {product.is_active ? (
+                <span className="text-ok">已上架</span>
+              ) : (
+                <span className="text-warn">已下架</span>
+              )}
+            </span>
+          </span>
+        </button>
         <form action={deleteProduct}>
           <input type="hidden" name="id" value={product.id} />
           <button
@@ -41,117 +73,121 @@ export function AdminProductCard({
         </form>
       </div>
 
-      {/* Edit */}
-      <form action={updateProduct} className="mt-4 grid grid-cols-2 gap-3">
-        <input type="hidden" name="id" value={product.id} />
-        <label className="col-span-2">
-          <span className={labelClass}>名称</span>
-          <input name="name" defaultValue={product.name} required className={fieldClass} />
-        </label>
-        <label className="col-span-2">
-          <span className={labelClass}>简介</span>
-          <textarea
-            name="description"
-            rows={2}
-            defaultValue={product.description ?? ""}
-            className={fieldClass}
-          />
-        </label>
-        <label className="col-span-2">
-          <span className={labelClass}>商品图片链接（http(s) 开头，可留空）</span>
-          <input
-            name="imageUrl"
-            type="url"
-            defaultValue={product.image_url ?? ""}
-            className={fieldClass}
-            placeholder="https://example.com/cover.png"
-          />
-          {product.image_url && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={product.image_url}
-              alt="当前图片"
-              className="mt-2 h-20 w-auto rounded-lg border border-line object-cover"
-            />
-          )}
-        </label>
-        <label className="col-span-2">
-          <span className={labelClass}>
-            使用说明 / 教程（买家付款后在订单页看到，支持换行）
-          </span>
-          <textarea
-            name="usageNotes"
-            rows={5}
-            defaultValue={product.usage_notes ?? ""}
-            className={`${fieldClass} font-mono`}
-            placeholder={
-              "示例：\n1. 前往充值站 https://...\n2. 输入卡密与 Token\n3. 一键充值到你的账号\n\n如遇问题联系客服。"
-            }
-          />
-        </label>
-        <label>
-          <span className={labelClass}>价格（元）</span>
-          <input
-            name="priceYuan"
-            type="number"
-            step="0.01"
-            min="0"
-            defaultValue={centsToYuanString(product.price_cents)}
-            required
-            className={fieldClass}
-          />
-        </label>
-        <label>
-          <span className={labelClass}>排序</span>
-          <input
-            name="sortOrder"
-            type="number"
-            defaultValue={product.sort_order}
-            className={fieldClass}
-          />
-        </label>
-        <label className="col-span-2 flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            name="isActive"
-            defaultChecked={product.is_active}
-            className="h-4 w-4 accent-[var(--color-accent)]"
-          />
-          <span>上架（前台可见并可购买）</span>
-        </label>
-        <button
-          type="submit"
-          className="col-span-2 rounded-lg bg-ink py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
-        >
-          保存修改
-        </button>
-      </form>
+      {open && (
+        <>
+          {/* Edit */}
+          <form action={updateProduct} className="mt-4 grid grid-cols-2 gap-3">
+            <input type="hidden" name="id" value={product.id} />
+            <label className="col-span-2">
+              <span className={labelClass}>名称</span>
+              <input name="name" defaultValue={product.name} required className={fieldClass} />
+            </label>
+            <label className="col-span-2">
+              <span className={labelClass}>简介</span>
+              <textarea
+                name="description"
+                rows={2}
+                defaultValue={product.description ?? ""}
+                className={fieldClass}
+              />
+            </label>
+            <label className="col-span-2">
+              <span className={labelClass}>商品图片链接（http(s) 开头，可留空）</span>
+              <input
+                name="imageUrl"
+                type="url"
+                defaultValue={product.image_url ?? ""}
+                className={fieldClass}
+                placeholder="https://example.com/cover.png"
+              />
+              {product.image_url && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={product.image_url}
+                  alt="当前图片"
+                  className="mt-2 h-20 w-auto rounded-lg border border-line object-cover"
+                />
+              )}
+            </label>
+            <label className="col-span-2">
+              <span className={labelClass}>
+                使用说明 / 教程（买家付款后在订单页看到，支持换行）
+              </span>
+              <textarea
+                name="usageNotes"
+                rows={5}
+                defaultValue={product.usage_notes ?? ""}
+                className={`${fieldClass} font-mono`}
+                placeholder={
+                  "示例：\n1. 前往充值站 https://...\n2. 输入卡密与 Token\n3. 一键充值到你的账号\n\n如遇问题联系客服。"
+                }
+              />
+            </label>
+            <label>
+              <span className={labelClass}>价格（元）</span>
+              <input
+                name="priceYuan"
+                type="number"
+                step="0.01"
+                min="0"
+                defaultValue={centsToYuanString(product.price_cents)}
+                required
+                className={fieldClass}
+              />
+            </label>
+            <label>
+              <span className={labelClass}>排序</span>
+              <input
+                name="sortOrder"
+                type="number"
+                defaultValue={product.sort_order}
+                className={fieldClass}
+              />
+            </label>
+            <label className="col-span-2 flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                name="isActive"
+                defaultChecked={product.is_active}
+                className="h-4 w-4 accent-[var(--color-accent)]"
+              />
+              <span>上架（前台可见并可购买）</span>
+            </label>
+            <button
+              type="submit"
+              className="col-span-2 rounded-lg bg-ink py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+            >
+              保存修改
+            </button>
+          </form>
 
-      {/* 卡密管理：逐条查看 / 改内容 / 删除 */}
-      <details className="mt-4 border-t border-line pt-4">
-        <summary className="cursor-pointer select-none text-sm font-medium text-ink">
-          管理卡密
-          <span className="ml-1 text-muted">（可用 {manageable.length} 张）</span>
-        </summary>
+          {/* 卡密管理：逐条查看 / 改内容 / 删除 */}
+          <details className="mt-4 border-t border-line pt-4">
+            <summary className="cursor-pointer select-none text-sm font-medium text-ink">
+              管理卡密
+              <span className="ml-1 text-muted">（可用 {manageable.length} 张）</span>
+            </summary>
 
-        {manageable.length === 0 ? (
-          <p className="mt-2 text-xs text-muted">
-            暂无可用卡密，用下方「进货」添加。
-          </p>
-        ) : (
-          <ul className="mt-3 space-y-2">
-            {manageable.map((card) => (
-              <CardRow key={card.id} card={card} />
-            ))}
-          </ul>
-        )}
-        <p className="mt-2 text-[11px] text-muted">
-          已售出的卡密在下方「最近订单」里查看；如出问题可在订单行直接改内容换货。
-        </p>
-      </details>
+            {manageable.length === 0 ? (
+              <p className="mt-2 text-xs text-muted">
+                暂无可用卡密，用下方「进货」添加。
+              </p>
+            ) : (
+              <ul className="mt-3 space-y-2">
+                {manageable.map((card) => (
+                  <CardRow key={card.id} card={card} />
+                ))}
+              </ul>
+            )}
+            <p className="mt-2 text-[11px] text-muted">
+              已售出的卡密在下方「最近订单」里查看；如出问题可在订单行直接改内容换货。
+            </p>
+          </details>
 
-      {/* 进货卡密 */}
-      <StockForm productId={product.id} />
+          {/* 进货卡密 */}
+          <StockForm productId={product.id} />
+        </>
+      )}
     </div>
   );
 }

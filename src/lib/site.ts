@@ -5,7 +5,7 @@ export const site = {
   logoUrl:
     "https://dtetbnnhdldloetfdakr.supabase.co/storage/v1/object/public/product-images/logo-burger.png",
   heroImage:
-    "https://dtetbnnhdldloetfdakr.supabase.co/storage/v1/object/public/product-images/79644a5f-56a5-453e-8d8f-31d4032b7b3c.jpg",
+    "https://dtetbnnhdldloetfdakr.supabase.co/storage/v1/object/public/product-images/grok-image-cb6c2a9b-31d5-407a-b12f-24e8569cf1a1.jpg",
   support: {
     telegram: "@Ericttkx_229",
     telegramUrl: "https://t.me/Ericttkx_229",

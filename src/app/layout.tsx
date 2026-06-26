@@ -11,8 +11,8 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "双吉ai汉堡 · 付款后秒发卡密",
-  description: "双吉ai汉堡 — 选好商品、扫码支付，卡密数秒自动送达。",
+  title: "双吉AI · 付款后秒发卡密",
+  description: "双吉AI — 选好商品、扫码支付，卡密数秒自动送达。",
 };
 
 export default function RootLayout({

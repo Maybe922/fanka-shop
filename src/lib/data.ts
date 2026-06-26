@@ -75,18 +75,27 @@ export async function getPaidOrderStats(): Promise<{
   return { soldOrders: rows.length, revenueCents };
 }
 
-export async function getRecentOrders(limit = 50): Promise<AdminOrder[]> {
+// 后台订单分页：每页 pageSize 条，按时间倒序，附总数用于翻页。
+export async function getOrdersPage(
+  page = 1,
+  pageSize = 20,
+): Promise<{ orders: AdminOrder[]; total: number }> {
   const supabase = createServiceClient();
-  const { data, error } = await supabase
+  const safePage = Math.max(1, Math.floor(page));
+  const from = (safePage - 1) * pageSize;
+  const to = from + pageSize - 1;
+
+  const { data, error, count } = await supabase
     .from("orders")
     .select(
-      "id, product_id, trade_order_id, amount_cents, status, card_id, paid_at, created_at, products(name), cards(secret)",
+      "id, product_id, trade_order_id, amount_cents, status, card_id, email, contact, paid_at, created_at, products(name), cards(secret)",
+      { count: "exact" },
     )
     .order("created_at", { ascending: false })
-    .limit(limit);
+    .range(from, to);
   if (error) throw new Error(error.message);
 
-  return (data ?? []).map((row) => {
+  const orders = (data ?? []).map((row) => {
     const product = row.products as { name: string } | { name: string }[] | null;
     const productName = Array.isArray(product)
       ? (product[0]?.name ?? null)
@@ -104,10 +113,13 @@ export async function getRecentOrders(limit = 50): Promise<AdminOrder[]> {
       status: row.status,
       card_id: row.card_id,
       card_secret: cardSecret,
+      contact: row.email ?? row.contact ?? null,
       paid_at: row.paid_at,
       created_at: row.created_at,
     } satisfies AdminOrder;
   });
+
+  return { orders, total: count ?? 0 };
 }
 
 // 某买家本人的订单（订单中心用）。凭登录态的 user_id 过滤，服务端读取。
@@ -137,6 +149,7 @@ export async function getMyOrders(userId: string): Promise<AdminOrder[]> {
       status: row.status,
       card_id: row.card_id,
       card_secret: null, // 订单中心列表不展示卡密（买家在订单详情页查看）
+      contact: null, // 买家本人订单页不展示联系方式
       paid_at: row.paid_at,
       created_at: row.created_at,
     } satisfies AdminOrder;

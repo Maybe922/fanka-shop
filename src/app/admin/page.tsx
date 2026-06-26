@@ -4,7 +4,7 @@ import { isAdminEmail } from "@/lib/admin-auth";
 import { getBuyer } from "@/lib/supabase/auth-server";
 import {
   getAdminProducts,
-  getRecentOrders,
+  getOrdersPage,
   getAllCards,
   getPaidOrderStats,
   expireStaleOrders,
@@ -22,7 +22,7 @@ export const dynamic = "force-dynamic";
 export default async function AdminPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; ok?: string }>;
+  searchParams: Promise<{ error?: string; ok?: string; page?: string }>;
 }) {
   const buyer = await getBuyer();
   if (!buyer) redirect("/login?next=/admin");
@@ -31,10 +31,12 @@ export default async function AdminPage({
   // 回收超时未付订单的库存，确保下方列表状态与库存是最新的。
   await expireStaleOrders();
 
-  const { error, ok } = await searchParams;
-  const [products, orders, cards, paidStats] = await Promise.all([
+  const { error, ok, page: pageParam } = await searchParams;
+  const ORDERS_PAGE_SIZE = 20;
+  const page = Math.max(1, Number(pageParam) || 1);
+  const [products, ordersPage, cards, paidStats] = await Promise.all([
     getAdminProducts(),
-    getRecentOrders(),
+    getOrdersPage(page, ORDERS_PAGE_SIZE),
     getAllCards(),
     getPaidOrderStats(),
   ]);
@@ -113,9 +115,14 @@ export default async function AdminPage({
           )}
         </section>
 
-        <section>
+        <section id="orders">
           <h2 className="mb-4 text-lg font-semibold tracking-tight">最近订单</h2>
-          <OrdersTable orders={orders} />
+          <OrdersTable
+            orders={ordersPage.orders}
+            page={page}
+            pageSize={ORDERS_PAGE_SIZE}
+            total={ordersPage.total}
+          />
         </section>
       </div>
     </main>

@@ -46,6 +46,7 @@ export interface AdminOrder {
   status: OrderState;
   card_id: string | null;
   card_secret: string | null; // 该订单发出的卡密内容（后台最近订单展示/换货）
+  contact: string | null; // 下单买家联系方式（邮箱 / 自填联系方式）
   paid_at: string | null;
   created_at: string;
 }

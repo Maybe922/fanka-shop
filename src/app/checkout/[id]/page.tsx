@@ -4,7 +4,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { CheckoutOrderButton } from "@/components/CheckoutOrderButton";
 import { getBuyer } from "@/lib/supabase/auth-server";
 import { createServiceClient } from "@/lib/supabase/server";
-import { formatCny } from "@/lib/money";
+import { Price } from "@/components/Price";
 
 export const dynamic = "force-dynamic";
 
@@ -90,9 +90,10 @@ export default async function CheckoutPage({
           {/* 右：订单信息 */}
           <aside className="h-fit rounded-card border border-line bg-surface p-6 lg:sticky lg:top-6">
             <h2 className="text-sm font-semibold text-muted">订单信息</h2>
-            <p className="mt-2 font-mono text-3xl font-semibold tracking-tight">
-              {formatCny(product.price_cents)}
-            </p>
+            <Price
+              cents={product.price_cents}
+              className="mt-2 block text-3xl font-semibold tracking-tight"
+            />
 
             {/* 下单须知 */}
             <div className="mt-5 rounded-xl border border-warn/25 bg-warn/5 p-4 text-xs leading-relaxed text-ink/80">

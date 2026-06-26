@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { SiteHeader } from "@/components/SiteHeader";
 import { getBuyer } from "@/lib/supabase/auth-server";
 import { getMyOrders, expireStaleOrders } from "@/lib/data";
-import { formatCny } from "@/lib/money";
+import { Price } from "@/components/Price";
 import type { AdminOrder } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -128,7 +128,7 @@ function OrderRow({ order }: { order: AdminOrder }) {
           <StatusBadge order={order} />
         </div>
         <p className="mt-1 text-xs text-muted">
-          <span className="font-mono">{formatCny(order.amount_cents)}</span>
+          <Price cents={order.amount_cents} />
           {" · "}
           {formatTime(order.created_at)}
         </p>

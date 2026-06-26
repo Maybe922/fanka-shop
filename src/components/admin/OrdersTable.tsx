@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { formatCny } from "@/lib/money";
+import { Price } from "@/components/Price";
 import type { AdminOrder } from "@/lib/types";
 
 function formatTime(iso: string): string {
@@ -55,7 +55,9 @@ export function OrdersTable({ orders, page, pageSize, total }: Props) {
                   {o.contact ?? "—"}
                 </td>
                 <td className="px-4 py-3 font-mono">1</td>
-                <td className="px-4 py-3 font-mono">{formatCny(o.amount_cents)}</td>
+                <td className="px-4 py-3">
+                  <Price cents={o.amount_cents} />
+                </td>
                 <td className="px-4 py-3">
                   <OrderBadge order={o} />
                 </td>

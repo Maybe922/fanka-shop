@@ -5,7 +5,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { PayPanel } from "@/components/PayPanel";
 import { getBuyer } from "@/lib/supabase/auth-server";
 import { createServiceClient } from "@/lib/supabase/server";
-import { formatCny } from "@/lib/money";
+import { Price } from "@/components/Price";
 
 export const dynamic = "force-dynamic";
 
@@ -57,9 +57,10 @@ export default async function PayPage({
 
         <div className="mt-2 text-center">
           <p className="text-sm text-muted">{productName}</p>
-          <p className="mt-1 font-mono text-3xl font-semibold tracking-tight">
-            {formatCny(order.amount_cents)}
-          </p>
+          <Price
+            cents={order.amount_cents}
+            className="mt-1 block text-3xl font-semibold tracking-tight"
+          />
         </div>
 
         <div className="mt-6">

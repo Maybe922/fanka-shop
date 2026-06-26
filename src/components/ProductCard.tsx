@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { formatCny } from "@/lib/money";
+import { Price } from "@/components/Price";
 import type { PublicProduct } from "@/lib/types";
 
 export function ProductCard({ product }: { product: PublicProduct }) {
@@ -49,13 +49,11 @@ export function ProductCard({ product }: { product: PublicProduct }) {
             <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted">
               单价
             </p>
-            <p className="mt-0.5 flex items-baseline font-mono text-[26px] font-semibold leading-[1.25] tracking-tight">
-              <span className="mr-0.5 text-accent">¥</span>
-              {(product.price_cents / 100).toLocaleString("zh-CN", {
-                minimumFractionDigits: 0,
-                maximumFractionDigits: 2,
-              })}
-            </p>
+            <Price
+              cents={product.price_cents}
+              className="mt-0.5 flex items-baseline text-[26px] font-semibold leading-[1.25] tracking-tight"
+              symbolClassName="mr-0.5 text-accent"
+            />
           </div>
         </div>
 

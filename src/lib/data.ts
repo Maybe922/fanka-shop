@@ -58,6 +58,23 @@ export async function getAllCards(): Promise<AdminCard[]> {
   return (data ?? []) as AdminCard[];
 }
 
+// 后台「节点概览」用的聚合统计：已付订单总数 + 总销售额（分）。
+// 不限于最近 N 单，扫描全部已付订单求和（小店量级开销可忽略）。
+export async function getPaidOrderStats(): Promise<{
+  soldOrders: number;
+  revenueCents: number;
+}> {
+  const supabase = createServiceClient();
+  const { data, error } = await supabase
+    .from("orders")
+    .select("amount_cents")
+    .eq("status", "paid");
+  if (error) throw new Error(error.message);
+  const rows = data ?? [];
+  const revenueCents = rows.reduce((sum, r) => sum + (r.amount_cents ?? 0), 0);
+  return { soldOrders: rows.length, revenueCents };
+}
+
 export async function getRecentOrders(limit = 50): Promise<AdminOrder[]> {
   const supabase = createServiceClient();
   const { data, error } = await supabase

@@ -6,12 +6,14 @@ import {
   getAdminProducts,
   getRecentOrders,
   getAllCards,
+  getPaidOrderStats,
   expireStaleOrders,
 } from "@/lib/data";
 import type { AdminCard } from "@/lib/types";
 import { signOut } from "@/app/login/actions";
 import { NewProductForm } from "@/components/admin/NewProductForm";
 import { AdminProductCard } from "@/components/admin/AdminProductCard";
+import { StatsOverview } from "@/components/admin/StatsOverview";
 import { OrdersTable } from "@/components/admin/OrdersTable";
 import { site } from "@/lib/site";
 
@@ -30,11 +32,14 @@ export default async function AdminPage({
   await expireStaleOrders();
 
   const { error, ok } = await searchParams;
-  const [products, orders, cards] = await Promise.all([
+  const [products, orders, cards, paidStats] = await Promise.all([
     getAdminProducts(),
     getRecentOrders(),
     getAllCards(),
+    getPaidOrderStats(),
   ]);
+
+  const stockLeft = products.reduce((sum, p) => sum + p.stock, 0);
 
   const cardsByProduct = new Map<string, AdminCard[]>();
   for (const c of cards) {
@@ -78,6 +83,12 @@ export default async function AdminPage({
             {error ?? ok}
           </div>
         )}
+
+        <StatsOverview
+          stockLeft={stockLeft}
+          soldOrders={paidStats.soldOrders}
+          revenueCents={paidStats.revenueCents}
+        />
 
         <section>
           <NewProductForm />

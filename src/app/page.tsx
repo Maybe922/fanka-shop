@@ -202,13 +202,11 @@ export default async function Home() {
             </span>
           </div>
 
-          <ul className="mt-4 divide-y divide-line">
+          <div className="mt-7 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {GUIDES.map((g, i) => (
-              <li key={g.title}>
-                <GuideRow guide={g} index={i} />
-              </li>
+              <GuideCard key={g.title} guide={g} index={i} />
             ))}
-          </ul>
+          </div>
         </section>
       </main>
 
@@ -234,40 +232,49 @@ export default async function Home() {
   );
 }
 
-function GuideRow({ guide, index }: { guide: Guide; index: number }) {
+function GuideCard({ guide, index }: { guide: Guide; index: number }) {
   const no = String(index + 1).padStart(2, "0");
   const hasLink = guide.href.trim().length > 0;
 
   const inner = (
     <>
-      <span className="font-mono text-[12px] leading-6 text-muted">A{no}</span>
-      <div>
-        <div className="flex flex-wrap items-center gap-2.5">
-          <span className="rounded-full border border-line bg-surface px-2.5 py-0.5 font-mono text-[11px] text-muted">
-            {guide.tag}
-          </span>
-          <h3 className="text-[15px] font-semibold tracking-tight transition-colors group-hover:text-accent">
-            {guide.title}
-          </h3>
-          {!hasLink && (
-            <span className="font-mono text-[11px] text-muted/70">敬请期待</span>
-          )}
-        </div>
-        <p className="mt-2 text-[13px] leading-relaxed text-muted">{guide.summary}</p>
+      <div className="flex items-center justify-between gap-3">
+        <span className="rounded-full border border-line bg-bg px-2.5 py-0.5 font-mono text-[11px] text-muted">
+          {guide.tag}
+        </span>
+        <span className="font-mono text-[11px] text-muted">A{no}</span>
       </div>
-      {hasLink && (
-        <Chevron
-          className="mt-1 h-4 w-4 shrink-0 text-line transition-all duration-300 group-hover:translate-x-0.5 group-hover:text-accent"
-          aria-hidden
-        />
-      )}
+
+      <h3 className="mt-4 text-[16px] font-semibold leading-snug tracking-tight transition-colors group-hover:text-accent">
+        {guide.title}
+      </h3>
+      <p className="mt-2 line-clamp-3 flex-1 text-[13px] leading-relaxed text-muted">
+        {guide.summary}
+      </p>
+
+      <div className="mt-5 flex items-center justify-between border-t border-line pt-3.5 font-mono text-[12px]">
+        {hasLink ? (
+          <>
+            <span className="text-ink transition-colors group-hover:text-accent">
+              阅读教程
+            </span>
+            <Chevron
+              className="h-4 w-4 text-line transition-all duration-300 group-hover:translate-x-0.5 group-hover:text-accent"
+              aria-hidden
+            />
+          </>
+        ) : (
+          <span className="text-muted/70">敬请期待</span>
+        )}
+      </div>
     </>
   );
 
-  const grid = "grid grid-cols-[auto_1fr_auto] items-start gap-x-4 py-6";
+  const card =
+    "group flex flex-col rounded-card border border-line bg-surface p-5 shadow-[0_1px_0_rgba(0,0,0,0.02)]";
 
   if (!hasLink) {
-    return <div className={`group ${grid} opacity-80`}>{inner}</div>;
+    return <div className={card}>{inner}</div>;
   }
 
   const external = isExternal(guide.href);
@@ -275,7 +282,7 @@ function GuideRow({ guide, index }: { guide: Guide; index: number }) {
     <a
       href={guide.href}
       {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-      className={`group ${grid} -mx-3 rounded-lg px-3 transition-colors hover:bg-sunken`}
+      className={`${card} transition-all duration-300 hover:-translate-y-1 hover:border-ink/25 hover:shadow-[0_18px_40px_-22px_rgba(27,23,19,0.4)]`}
     >
       {inner}
     </a>

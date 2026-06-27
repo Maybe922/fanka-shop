@@ -33,7 +33,7 @@ export async function getPublicProducts(): Promise<PublicProduct[]> {
 
 // ── 教程文章 ────────────────────────────────────────────────────
 
-// 首页「相关教程说明」卡片：仅已发布，按 sort_order/创建时间。
+// 首页「相关教程说明」卡片：仅已发布、且填了外链，按 sort_order/创建时间。
 // 服务端渲染（首页是 server component），用 service 客户端直接读，无需公开视图。
 export async function getPublishedArticles(): Promise<ArticleCard[]> {
   if (!hasSupabaseConfig()) return [];
@@ -41,8 +41,9 @@ export async function getPublishedArticles(): Promise<ArticleCard[]> {
     const supabase = createServiceClient();
     const { data, error } = await supabase
       .from("articles")
-      .select("id, slug, tag, title, summary")
+      .select("id, tag, title, summary, link_url")
       .eq("is_published", true)
+      .neq("link_url", "")
       .order("sort_order", { ascending: true })
       .order("created_at", { ascending: false });
     if (error) {
@@ -54,22 +55,6 @@ export async function getPublishedArticles(): Promise<ArticleCard[]> {
     console.error("[getPublishedArticles]", err);
     return [];
   }
-}
-
-// 文章详情页：按 slug 取已发布文章，找不到返回 null（页面渲染 404）。
-export async function getArticleBySlug(slug: string): Promise<Article | null> {
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
-    .from("articles")
-    .select("*")
-    .eq("slug", slug)
-    .eq("is_published", true)
-    .maybeSingle();
-  if (error) {
-    console.error("[getArticleBySlug]", error.message);
-    return null;
-  }
-  return (data as Article) ?? null;
 }
 
 // 后台文章列表：含草稿，按 sort_order/创建时间。

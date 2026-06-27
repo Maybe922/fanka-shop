@@ -59,22 +59,21 @@ export interface OrderStatusPayload {
   expiresAt: string | null; // 待支付超时时间（ISO），供前端倒计时
 }
 
-// 站内教程文章。content 为 Markdown，详情页用 react-markdown 渲染。
+// 教程卡片。每张卡片指向一个外部链接（飞书等），点卡片直接跳外链。
 export interface Article {
   id: string;
-  slug: string;
   tag: string;
   title: string;
   summary: string;
-  content: string;
+  link_url: string;
   is_published: boolean;
   sort_order: number;
   created_at: string;
   updated_at: string;
 }
 
-// 首页卡片只需这些字段（不含正文，省传输）。
+// 首页卡片只需这些字段。
 export type ArticleCard = Pick<
   Article,
-  "id" | "slug" | "tag" | "title" | "summary"
+  "id" | "tag" | "title" | "summary" | "link_url"
 >;

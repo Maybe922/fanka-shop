@@ -7,7 +7,10 @@ export function NewArticleForm() {
       action={createArticle}
       className="rounded-card border border-line bg-surface p-5"
     >
-      <h3 className="text-sm font-semibold">写新文章</h3>
+      <h3 className="text-sm font-semibold">新增教程</h3>
+      <p className="mt-1 text-xs text-muted">
+        每张卡片指向一个外部链接（如飞书文档），用户点卡片直接跳转查看教程。
+      </p>
       <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="sm:col-span-2">
           <span className={labelClass}>标题</span>
@@ -16,6 +19,16 @@ export function NewArticleForm() {
             required
             className={fieldClass}
             placeholder="例如：ChatGPT Plus 卡密充值图文教程"
+          />
+        </label>
+        <label className="sm:col-span-2">
+          <span className={labelClass}>教程链接（飞书 / 文档外链，http(s) 开头）</span>
+          <input
+            name="linkUrl"
+            type="url"
+            required
+            className={`${fieldClass} font-mono`}
+            placeholder="https://xxx.feishu.cn/docx/..."
           />
         </label>
         <label>
@@ -28,11 +41,12 @@ export function NewArticleForm() {
           />
         </label>
         <label>
-          <span className={labelClass}>URL 短码（留空自动生成）</span>
+          <span className={labelClass}>排序（小在前）</span>
           <input
-            name="slug"
-            className={`${fieldClass} font-mono`}
-            placeholder="chatgpt-plus-recharge"
+            name="sortOrder"
+            type="number"
+            defaultValue={0}
+            className={fieldClass}
           />
         </label>
         <label className="sm:col-span-2">
@@ -44,27 +58,7 @@ export function NewArticleForm() {
             placeholder="一句话概括这篇教程讲什么"
           />
         </label>
-        <label className="sm:col-span-2">
-          <span className={labelClass}>正文（Markdown：# 标题、**加粗**、- 列表、![图](链接)）</span>
-          <textarea
-            name="content"
-            rows={12}
-            className={`${fieldClass} font-mono`}
-            placeholder={
-              "## 第一步\n打开充值站 https://...\n\n![充值页面截图](https://example.com/step1.png)\n\n## 第二步\n输入卡密，点击充值。"
-            }
-          />
-        </label>
-        <label>
-          <span className={labelClass}>排序（小在前）</span>
-          <input
-            name="sortOrder"
-            type="number"
-            defaultValue={0}
-            className={fieldClass}
-          />
-        </label>
-        <label className="flex items-end gap-2 pb-2 text-sm sm:col-span-1">
+        <label className="flex items-center gap-2 pt-1 text-sm sm:col-span-2">
           <input
             type="checkbox"
             name="isPublished"
@@ -78,7 +72,7 @@ export function NewArticleForm() {
         type="submit"
         className="mt-4 rounded-xl bg-accent px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-hover"
       >
-        发布文章
+        添加教程
       </button>
     </form>
   );

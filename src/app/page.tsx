@@ -1,5 +1,4 @@
 import { Fragment } from "react";
-import Link from "next/link";
 import { SiteHeader } from "@/components/SiteHeader";
 import { ProductCard } from "@/components/ProductCard";
 import { getPublicProducts, getPublishedArticles } from "@/lib/data";
@@ -216,8 +215,10 @@ function GuideCard({ article, index }: { article: ArticleCard; index: number }) 
   const no = String(index + 1).padStart(2, "0");
 
   return (
-    <Link
-      href={`/guides/${article.slug}`}
+    <a
+      href={article.link_url}
+      target="_blank"
+      rel="noopener noreferrer"
       className="group flex flex-col rounded-card border border-line bg-surface p-5 shadow-[0_1px_0_rgba(0,0,0,0.02)] transition-all duration-300 hover:-translate-y-1 hover:border-ink/25 hover:shadow-[0_18px_40px_-22px_rgba(27,23,19,0.4)]"
     >
       <div className="flex items-center justify-between gap-3">
@@ -245,7 +246,7 @@ function GuideCard({ article, index }: { article: ArticleCard; index: number }) 
           aria-hidden
         />
       </div>
-    </Link>
+    </a>
   );
 }
 

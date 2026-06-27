@@ -41,19 +41,20 @@ export function AdminArticleCard({ article }: { article: Article }) {
               {article.title}
             </span>
             <span className="mt-1 block text-xs text-muted">
-              {article.tag} · <span className="font-mono">/{article.slug}</span> ·{" "}
+              {article.tag} ·{" "}
               {article.is_published ? (
                 <span className="text-ok">已发布</span>
               ) : (
                 <span className="text-warn">草稿</span>
               )}
+              {!article.link_url && <span className="text-warn"> · 未填链接</span>}
             </span>
           </span>
         </button>
         <div className="flex shrink-0 items-center gap-2">
-          {article.is_published && (
+          {article.link_url && (
             <a
-              href={`/guides/${article.slug}`}
+              href={article.link_url}
               target="_blank"
               rel="noopener noreferrer"
               className="rounded-lg border border-line px-3 py-1.5 text-xs text-muted transition-colors hover:border-ink hover:text-ink"
@@ -85,16 +86,28 @@ export function AdminArticleCard({ article }: { article: Article }) {
               className={fieldClass}
             />
           </label>
+          <label className="col-span-2">
+            <span className={labelClass}>教程链接（飞书 / 文档外链）</span>
+            <input
+              name="linkUrl"
+              type="url"
+              defaultValue={article.link_url}
+              required
+              className={`${fieldClass} font-mono`}
+              placeholder="https://xxx.feishu.cn/docx/..."
+            />
+          </label>
           <label>
             <span className={labelClass}>分类标签</span>
             <input name="tag" defaultValue={article.tag} className={fieldClass} />
           </label>
           <label>
-            <span className={labelClass}>URL 短码</span>
+            <span className={labelClass}>排序</span>
             <input
-              name="slug"
-              defaultValue={article.slug}
-              className={`${fieldClass} font-mono`}
+              name="sortOrder"
+              type="number"
+              defaultValue={article.sort_order}
+              className={fieldClass}
             />
           </label>
           <label className="col-span-2">
@@ -103,24 +116,6 @@ export function AdminArticleCard({ article }: { article: Article }) {
               name="summary"
               rows={2}
               defaultValue={article.summary}
-              className={fieldClass}
-            />
-          </label>
-          <label className="col-span-2">
-            <span className={labelClass}>正文（Markdown）</span>
-            <textarea
-              name="content"
-              rows={14}
-              defaultValue={article.content}
-              className={`${fieldClass} font-mono`}
-            />
-          </label>
-          <label>
-            <span className={labelClass}>排序</span>
-            <input
-              name="sortOrder"
-              type="number"
-              defaultValue={article.sort_order}
               className={fieldClass}
             />
           </label>

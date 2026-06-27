@@ -28,19 +28,27 @@ create table if not exists cards (
   created_at timestamptz not null default now()
 );
 
--- 站内教程文章（后台编写，首页「相关教程说明」卡片 + /guides/[slug] 详情页）。
+-- 教程卡片（后台维护，首页「相关教程说明」卡片）。每张卡片指向一个外部链接
+-- （如飞书文档），用户点卡片直接跳转到外链查看教程。
 create table if not exists articles (
   id           uuid primary key default gen_random_uuid(),
-  slug         text not null unique,                 -- URL 短码，如 chatgpt-plus-recharge
   tag          text not null default '教程',          -- 分类标签（卡片上显示）
   title        text not null,
   summary      text not null default '',              -- 卡片摘要
-  content      text not null default '',              -- 正文（Markdown）
+  link_url     text not null default '',              -- 教程外链（飞书等）
   is_published boolean not null default false,        -- 草稿默认不公开
   sort_order   integer not null default 0,            -- 小在前
   created_at   timestamptz not null default now(),
   updated_at   timestamptz not null default now()
 );
+-- 兼容旧结构（若曾建过带 slug/content 的版本）：补 link_url，放开 slug 非空约束。
+alter table articles add column if not exists link_url text not null default '';
+do $$ begin
+  if exists (select 1 from information_schema.columns
+             where table_name = 'articles' and column_name = 'slug') then
+    alter table articles alter column slug drop not null;
+  end if;
+end $$;
 
 create table if not exists orders (
   id             uuid primary key default gen_random_uuid(),

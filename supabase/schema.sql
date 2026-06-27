@@ -50,6 +50,7 @@ alter table orders add column if not exists user_id uuid references auth.users(i
 alter table orders add column if not exists email text;
 alter table orders add column if not exists pay_code text;
 alter table orders add column if not exists expires_at timestamptz;
+alter table orders add column if not exists stock_alerted_at timestamptz; -- 「已付但缺货」告警去重标记
 
 alter table cards  drop constraint if exists cards_status_check;
 alter table cards  add  constraint cards_status_check  check (status in ('unsold','reserved','sold'));

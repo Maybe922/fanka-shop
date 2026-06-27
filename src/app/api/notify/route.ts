@@ -1,5 +1,6 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { verifyXunhuNotify } from "@/lib/xunhupay";
+import { notifyStockOutIfNeeded } from "@/lib/alert";
 
 export const runtime = "nodejs";
 
@@ -19,13 +20,24 @@ export async function POST(req: Request) {
   // status "OD" = paid/completed.
   if (params.status === "OD" && params.trade_order_id) {
     const supabase = createServiceClient();
-    const { error } = await supabase.rpc("deliver_order", {
+    const { data: secret, error } = await supabase.rpc("deliver_order", {
       p_trade_order_id: params.trade_order_id,
     });
     if (error) {
       console.error("[notify] deliver_order failed", error.message);
       // Let 虎皮椒 retry by NOT returning success.
       return new Response("retry", { status: 500 });
+    }
+    // 返回 null 可能是「已付但缺货」——读订单确认并告警（订单不存在则忽略）。
+    if (secret === null) {
+      const { data: o } = await supabase
+        .from("orders")
+        .select("id, status, card_id, trade_order_id")
+        .eq("trade_order_id", params.trade_order_id)
+        .single();
+      if (o && o.status === "paid" && !o.card_id) {
+        await notifyStockOutIfNeeded(supabase, o.id, o.trade_order_id);
+      }
     }
   }
 

@@ -13,20 +13,39 @@ const STEPS = [
   { t: "充值使用", d: "按交付页指引前往充值站，输入卡密即可到账" },
 ];
 
-const FAQ = [
+// 相关教程：充值/使用类文章。href 填真实链接（外链 http(s):// 或站内路径）；
+// 留空则该条显示「敬请期待」、不可点，避免死链。
+type Guide = {
+  tag: string;
+  title: string;
+  summary: string;
+  href: string;
+};
+
+const GUIDES: Guide[] = [
   {
-    q: "付款后多久能拿到卡密？",
-    a: "付款成功后系统会自动发卡，卡密通常在数秒内显示在订单页面。",
+    tag: "充值教程",
+    title: "ChatGPT Plus 卡密充值图文教程",
+    summary: "从打开充值站到卡密到账，每一步配图说明，第一次买也能照着做。",
+    href: "",
   },
   {
-    q: "卡密页面要保存吗？",
-    a: "卡密与你的登录邮箱绑定，可随时在「订单中心」找回。也建议截图保存，请勿外泄。",
+    tag: "充值教程",
+    title: "Claude Pro 订阅开通与使用指南",
+    summary: "卡密如何兑换、额度怎么看、常见限制说明，开通后照着用。",
+    href: "",
   },
   {
-    q: "付了款却没收到卡密怎么办？",
-    a: "极少数情况下若遇到库存不足，订单页会有提示，请保留订单号联系客服为你处理。",
+    tag: "常见问题",
+    title: "卡密充值报错 / 无法到账的排查清单",
+    summary: "按顺序自查：链接是否正确、卡密是否输全、地区与浏览器设置。",
+    href: "",
   },
 ];
+
+function isExternal(href: string): boolean {
+  return /^https?:\/\//i.test(href);
+}
 
 const HERO_META = ["全程自动", "数秒到账", "微信支付", "卡密绑定邮箱可找回"];
 
@@ -171,27 +190,25 @@ export default async function Home() {
           </div>
         </section>
 
-        {/* ── FAQ ──────────────────────────────────────────── */}
-        <section id="faq" className="mx-auto max-w-6xl px-5 py-16">
-          <div className="flex items-baseline gap-3 border-b border-line pb-4">
-            <span className="font-mono text-[12px] text-accent">[ 03 ]</span>
-            <h2 className="text-xl font-semibold tracking-tight">常见问题</h2>
+        {/* ── 相关教程 ──────────────────────────────────────── */}
+        <section id="guides" className="mx-auto max-w-6xl px-5 py-16">
+          <div className="flex items-end justify-between border-b border-line pb-4">
+            <div className="flex items-baseline gap-3">
+              <span className="font-mono text-[12px] text-accent">[ 03 ]</span>
+              <h2 className="text-xl font-semibold tracking-tight">相关教程说明</h2>
+            </div>
+            <span className="hidden font-mono text-[13px] text-muted sm:inline">
+              充值 · 使用 · 排错
+            </span>
           </div>
-          <dl className="mt-4 divide-y divide-line">
-            {FAQ.map((item, i) => (
-              <div key={item.q} className="grid grid-cols-[auto_1fr] gap-x-4 py-6">
-                <dt className="font-mono text-[12px] text-muted">
-                  Q{String(i + 1).padStart(2, "0")}
-                </dt>
-                <div>
-                  <dt className="text-[15px] font-semibold">{item.q}</dt>
-                  <dd className="mt-2 text-[13px] leading-relaxed text-muted">
-                    {item.a}
-                  </dd>
-                </div>
-              </div>
+
+          <ul className="mt-4 divide-y divide-line">
+            {GUIDES.map((g, i) => (
+              <li key={g.title}>
+                <GuideRow guide={g} index={i} />
+              </li>
             ))}
-          </dl>
+          </ul>
         </section>
       </main>
 
@@ -214,6 +231,54 @@ export default async function Home() {
         </div>
       </footer>
     </>
+  );
+}
+
+function GuideRow({ guide, index }: { guide: Guide; index: number }) {
+  const no = String(index + 1).padStart(2, "0");
+  const hasLink = guide.href.trim().length > 0;
+
+  const inner = (
+    <>
+      <span className="font-mono text-[12px] leading-6 text-muted">A{no}</span>
+      <div>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <span className="rounded-full border border-line bg-surface px-2.5 py-0.5 font-mono text-[11px] text-muted">
+            {guide.tag}
+          </span>
+          <h3 className="text-[15px] font-semibold tracking-tight transition-colors group-hover:text-accent">
+            {guide.title}
+          </h3>
+          {!hasLink && (
+            <span className="font-mono text-[11px] text-muted/70">敬请期待</span>
+          )}
+        </div>
+        <p className="mt-2 text-[13px] leading-relaxed text-muted">{guide.summary}</p>
+      </div>
+      {hasLink && (
+        <Chevron
+          className="mt-1 h-4 w-4 shrink-0 text-line transition-all duration-300 group-hover:translate-x-0.5 group-hover:text-accent"
+          aria-hidden
+        />
+      )}
+    </>
+  );
+
+  const grid = "grid grid-cols-[auto_1fr_auto] items-start gap-x-4 py-6";
+
+  if (!hasLink) {
+    return <div className={`group ${grid} opacity-80`}>{inner}</div>;
+  }
+
+  const external = isExternal(guide.href);
+  return (
+    <a
+      href={guide.href}
+      {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+      className={`group ${grid} -mx-3 rounded-lg px-3 transition-colors hover:bg-sunken`}
+    >
+      {inner}
+    </a>
   );
 }
 

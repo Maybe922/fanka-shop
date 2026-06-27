@@ -43,10 +43,10 @@ export async function SiteHeader() {
             流程
           </a>
           <a
-            href="/#faq"
+            href="/#guides"
             className="hidden rounded-md px-2.5 py-1.5 transition-colors hover:bg-sunken hover:text-ink sm:inline"
           >
-            常见问题
+            教程
           </a>
 
           {buyer ? (

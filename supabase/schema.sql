@@ -28,6 +28,20 @@ create table if not exists cards (
   created_at timestamptz not null default now()
 );
 
+-- 站内教程文章（后台编写，首页「相关教程说明」卡片 + /guides/[slug] 详情页）。
+create table if not exists articles (
+  id           uuid primary key default gen_random_uuid(),
+  slug         text not null unique,                 -- URL 短码，如 chatgpt-plus-recharge
+  tag          text not null default '教程',          -- 分类标签（卡片上显示）
+  title        text not null,
+  summary      text not null default '',              -- 卡片摘要
+  content      text not null default '',              -- 正文（Markdown）
+  is_published boolean not null default false,        -- 草稿默认不公开
+  sort_order   integer not null default 0,            -- 小在前
+  created_at   timestamptz not null default now(),
+  updated_at   timestamptz not null default now()
+);
+
 create table if not exists orders (
   id             uuid primary key default gen_random_uuid(),
   product_id     uuid not null references products(id),
@@ -58,6 +72,7 @@ alter table orders drop constraint if exists orders_status_check;
 alter table orders add  constraint orders_status_check check (status in ('pending','paid','expired'));
 
 create index if not exists idx_cards_product_status on cards (product_id, status);
+create index if not exists idx_articles_published on articles (is_published, sort_order, created_at);
 create index if not exists idx_orders_created on orders (created_at desc);
 create index if not exists idx_orders_user on orders (user_id, created_at desc);
 
@@ -241,6 +256,7 @@ from products p;
 alter table products enable row level security;
 alter table cards    enable row level security;
 alter table orders   enable row level security;
+alter table articles enable row level security; -- 文章读写全走 service_role（服务端渲染/后台）
 
 -- (no anon policies on cards/orders — they stay private)
 

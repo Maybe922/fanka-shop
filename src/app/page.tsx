@@ -1,7 +1,9 @@
 import { Fragment } from "react";
+import Link from "next/link";
 import { SiteHeader } from "@/components/SiteHeader";
 import { ProductCard } from "@/components/ProductCard";
-import { getPublicProducts } from "@/lib/data";
+import { getPublicProducts, getPublishedArticles } from "@/lib/data";
+import type { ArticleCard } from "@/lib/types";
 import { site } from "@/lib/site";
 
 export const dynamic = "force-dynamic"; // always show fresh stock
@@ -13,44 +15,13 @@ const STEPS = [
   { t: "充值使用", d: "按交付页指引前往充值站，输入卡密即可到账" },
 ];
 
-// 相关教程：充值/使用类文章。href 填真实链接（外链 http(s):// 或站内路径）；
-// 留空则该条显示「敬请期待」、不可点，避免死链。
-type Guide = {
-  tag: string;
-  title: string;
-  summary: string;
-  href: string;
-};
-
-const GUIDES: Guide[] = [
-  {
-    tag: "充值教程",
-    title: "ChatGPT Plus 卡密充值图文教程",
-    summary: "从打开充值站到卡密到账，每一步配图说明，第一次买也能照着做。",
-    href: "",
-  },
-  {
-    tag: "充值教程",
-    title: "Claude Pro 订阅开通与使用指南",
-    summary: "卡密如何兑换、额度怎么看、常见限制说明，开通后照着用。",
-    href: "",
-  },
-  {
-    tag: "常见问题",
-    title: "卡密充值报错 / 无法到账的排查清单",
-    summary: "按顺序自查：链接是否正确、卡密是否输全、地区与浏览器设置。",
-    href: "",
-  },
-];
-
-function isExternal(href: string): boolean {
-  return /^https?:\/\//i.test(href);
-}
-
 const HERO_META = ["全程自动", "数秒到账", "微信支付", "卡密绑定邮箱可找回"];
 
 export default async function Home() {
-  const products = await getPublicProducts();
+  const [products, articles] = await Promise.all([
+    getPublicProducts(),
+    getPublishedArticles(),
+  ]);
 
   return (
     <>
@@ -202,11 +173,20 @@ export default async function Home() {
             </span>
           </div>
 
-          <div className="mt-7 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {GUIDES.map((g, i) => (
-              <GuideCard key={g.title} guide={g} index={i} />
-            ))}
-          </div>
+          {articles.length === 0 ? (
+            <div className="mt-7 rounded-card border border-dashed border-line bg-surface px-6 py-16 text-center">
+              <p className="font-mono text-[13px] uppercase tracking-[0.16em] text-muted">
+                no guides yet
+              </p>
+              <p className="mt-3 text-sm text-muted">教程整理中，敬请期待。</p>
+            </div>
+          ) : (
+            <div className="mt-7 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {articles.map((a, i) => (
+                <GuideCard key={a.id} article={a} index={i} />
+              ))}
+            </div>
+          )}
         </section>
       </main>
 
@@ -232,60 +212,40 @@ export default async function Home() {
   );
 }
 
-function GuideCard({ guide, index }: { guide: Guide; index: number }) {
+function GuideCard({ article, index }: { article: ArticleCard; index: number }) {
   const no = String(index + 1).padStart(2, "0");
-  const hasLink = guide.href.trim().length > 0;
 
-  const inner = (
-    <>
+  return (
+    <Link
+      href={`/guides/${article.slug}`}
+      className="group flex flex-col rounded-card border border-line bg-surface p-5 shadow-[0_1px_0_rgba(0,0,0,0.02)] transition-all duration-300 hover:-translate-y-1 hover:border-ink/25 hover:shadow-[0_18px_40px_-22px_rgba(27,23,19,0.4)]"
+    >
       <div className="flex items-center justify-between gap-3">
         <span className="rounded-full border border-line bg-bg px-2.5 py-0.5 font-mono text-[11px] text-muted">
-          {guide.tag}
+          {article.tag}
         </span>
         <span className="font-mono text-[11px] text-muted">A{no}</span>
       </div>
 
       <h3 className="mt-4 text-[16px] font-semibold leading-snug tracking-tight transition-colors group-hover:text-accent">
-        {guide.title}
+        {article.title}
       </h3>
-      <p className="mt-2 line-clamp-3 flex-1 text-[13px] leading-relaxed text-muted">
-        {guide.summary}
-      </p>
+      {article.summary && (
+        <p className="mt-2 line-clamp-3 flex-1 text-[13px] leading-relaxed text-muted">
+          {article.summary}
+        </p>
+      )}
 
       <div className="mt-5 flex items-center justify-between border-t border-line pt-3.5 font-mono text-[12px]">
-        {hasLink ? (
-          <>
-            <span className="text-ink transition-colors group-hover:text-accent">
-              阅读教程
-            </span>
-            <Chevron
-              className="h-4 w-4 text-line transition-all duration-300 group-hover:translate-x-0.5 group-hover:text-accent"
-              aria-hidden
-            />
-          </>
-        ) : (
-          <span className="text-muted/70">敬请期待</span>
-        )}
+        <span className="text-ink transition-colors group-hover:text-accent">
+          阅读教程
+        </span>
+        <Chevron
+          className="h-4 w-4 text-line transition-all duration-300 group-hover:translate-x-0.5 group-hover:text-accent"
+          aria-hidden
+        />
       </div>
-    </>
-  );
-
-  const card =
-    "group flex flex-col rounded-card border border-line bg-surface p-5 shadow-[0_1px_0_rgba(0,0,0,0.02)]";
-
-  if (!hasLink) {
-    return <div className={card}>{inner}</div>;
-  }
-
-  const external = isExternal(guide.href);
-  return (
-    <a
-      href={guide.href}
-      {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-      className={`${card} transition-all duration-300 hover:-translate-y-1 hover:border-ink/25 hover:shadow-[0_18px_40px_-22px_rgba(27,23,19,0.4)]`}
-    >
-      {inner}
-    </a>
+    </Link>
   );
 }
 

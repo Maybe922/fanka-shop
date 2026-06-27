@@ -7,6 +7,7 @@ import { isAdminEmail } from "@/lib/admin-auth";
 import { getBuyer } from "@/lib/supabase/auth-server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { yuanToCents } from "@/lib/money";
+import { slugify } from "@/lib/slug";
 
 // 后台写操作守卫：未登录跳登录页，已登录但非管理员跳首页。
 async function assertAdmin(): Promise<void> {
@@ -231,4 +232,117 @@ export async function deleteCard(
 
   refreshAdmin();
   return { ok: true, message: "卡密已删除" };
+}
+
+// ── Articles（教程文章）─────────────────────────────────────────
+// 走整页跳转式 server action（同 Products）：成功回 /admin?ok=...，失败 ?error=...。
+
+function refreshArticle(slug?: string): void {
+  revalidatePath("/admin");
+  revalidatePath("/"); // 首页卡片
+  if (slug) revalidatePath(`/guides/${slug}`);
+}
+
+const articleSchema = z.object({
+  title: z.string().trim().min(1, "请输入标题").max(200),
+  slug: z.string().trim().max(120).optional().default(""),
+  tag: z.string().trim().max(40).optional().default("教程"),
+  summary: z.string().trim().max(500).optional().default(""),
+  content: z.string().max(50000).optional().default(""),
+  sortOrder: z.coerce.number().int().default(0),
+  isPublished: z.coerce.boolean().default(false),
+});
+
+export async function createArticle(formData: FormData): Promise<void> {
+  await assertAdmin();
+  const parsed = articleSchema.safeParse({
+    title: formData.get("title"),
+    slug: formData.get("slug"),
+    tag: formData.get("tag"),
+    summary: formData.get("summary"),
+    content: formData.get("content"),
+    sortOrder: formData.get("sortOrder") || 0,
+    isPublished: formData.get("isPublished") === "on",
+  });
+  if (!parsed.success) {
+    redirect("/admin?error=" + encodeURIComponent(parsed.error.issues[0].message));
+  }
+  const { title, slug, tag, summary, content, sortOrder, isPublished } =
+    parsed.data;
+  const finalSlug = slugify(slug || title);
+
+  const supabase = createServiceClient();
+  const { error } = await supabase.from("articles").insert({
+    title,
+    slug: finalSlug,
+    tag: tag || "教程",
+    summary,
+    content,
+    sort_order: sortOrder,
+    is_published: isPublished,
+  });
+  if (error) {
+    const msg = error.code === "23505" ? "slug 已被占用，请换一个" : error.message;
+    redirect("/admin?error=" + encodeURIComponent(msg));
+  }
+
+  refreshArticle(finalSlug);
+  redirect("/admin?ok=" + encodeURIComponent("文章已创建"));
+}
+
+const updateArticleSchema = articleSchema.extend({ id: z.string().uuid() });
+
+export async function updateArticle(formData: FormData): Promise<void> {
+  await assertAdmin();
+  const parsed = updateArticleSchema.safeParse({
+    id: formData.get("id"),
+    title: formData.get("title"),
+    slug: formData.get("slug"),
+    tag: formData.get("tag"),
+    summary: formData.get("summary"),
+    content: formData.get("content"),
+    sortOrder: formData.get("sortOrder") || 0,
+    isPublished: formData.get("isPublished") === "on",
+  });
+  if (!parsed.success) {
+    redirect("/admin?error=" + encodeURIComponent(parsed.error.issues[0].message));
+  }
+  const { id, title, slug, tag, summary, content, sortOrder, isPublished } =
+    parsed.data;
+  const finalSlug = slugify(slug || title);
+
+  const supabase = createServiceClient();
+  const { error } = await supabase
+    .from("articles")
+    .update({
+      title,
+      slug: finalSlug,
+      tag: tag || "教程",
+      summary,
+      content,
+      sort_order: sortOrder,
+      is_published: isPublished,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id);
+  if (error) {
+    const msg = error.code === "23505" ? "slug 已被占用，请换一个" : error.message;
+    redirect("/admin?error=" + encodeURIComponent(msg));
+  }
+
+  refreshArticle(finalSlug);
+  redirect("/admin?ok=" + encodeURIComponent("文章已保存"));
+}
+
+export async function deleteArticle(formData: FormData): Promise<void> {
+  await assertAdmin();
+  const id = z.string().uuid().safeParse(formData.get("id"));
+  if (!id.success) redirect("/admin?error=参数错误");
+
+  const supabase = createServiceClient();
+  const { error } = await supabase.from("articles").delete().eq("id", id.data);
+  if (error) redirect("/admin?error=" + encodeURIComponent(error.message));
+
+  refreshArticle();
+  redirect("/admin?ok=" + encodeURIComponent("文章已删除"));
 }

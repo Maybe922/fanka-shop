@@ -58,3 +58,23 @@ export interface OrderStatusPayload {
   productName: string;
   expiresAt: string | null; // 待支付超时时间（ISO），供前端倒计时
 }
+
+// 站内教程文章。content 为 Markdown，详情页用 react-markdown 渲染。
+export interface Article {
+  id: string;
+  slug: string;
+  tag: string;
+  title: string;
+  summary: string;
+  content: string;
+  is_published: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+// 首页卡片只需这些字段（不含正文，省传输）。
+export type ArticleCard = Pick<
+  Article,
+  "id" | "slug" | "tag" | "title" | "summary"
+>;

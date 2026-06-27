@@ -10,9 +10,14 @@ const plexMono = IBM_Plex_Mono({
   display: "swap",
 });
 
+// 正式站在 VPS（无 VERCEL 变量），可被搜索引擎收录。
+// Vercel 部署仅作测试环境（VERCEL=1）→ noindex，避免与正式站抢 SEO、防被收录。
+const isTestEnv = process.env.VERCEL === "1";
+
 export const metadata: Metadata = {
   title: "双吉AI · 付款后秒发卡密",
   description: "双吉AI — 选好商品、扫码支付，卡密数秒自动送达。",
+  ...(isTestEnv ? { robots: { index: false, follow: false } } : {}),
 };
 
 export default function RootLayout({

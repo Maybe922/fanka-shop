@@ -117,7 +117,7 @@ export default async function Home() {
               {STEPS.map((s, i) => (
                 <Fragment key={s.t}>
                   <li className="flex flex-1 flex-col items-center text-center">
-                    <span className="grid h-14 w-14 place-items-center rounded-2xl bg-accent font-mono text-2xl font-bold text-accent-foreground shadow-[0_10px_22px_-10px_var(--accent)] transition-transform duration-300 hover:-translate-y-0.5">
+                    <span className="grid h-14 w-14 place-items-center rounded-2xl border border-accent/15 bg-accent/10 font-mono text-2xl font-bold text-accent transition-transform duration-300 hover:-translate-y-0.5">
                       {i + 1}
                     </span>
                     <h3 className="mt-5 text-base font-semibold tracking-tight">

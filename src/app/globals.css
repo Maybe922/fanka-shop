@@ -1,30 +1,40 @@
-@import "tailwindcss";
+/* HeroUI v3（内含 Tailwind v4 + 组件样式 + 默认主题） */
+@import "@heroui/styles";
 
 /* ──────────────────────────────────────────────────────────────
-   发卡小店 — "自动发卡终端" 设计系统
-   暖纸质 · 墨黑 · 电光朱红 · 等宽密钥字 · 票据印刷质感
+   双吉AI — 明亮商店主题（HeroUI 变量覆盖）
+   纯白纸面 · 单一饱和暖橙主色 · 等宽密钥字
    ────────────────────────────────────────────────────────────── */
 @theme {
-  --color-bg: #f1ece0; /* 暖米白 / 牛皮纸 */
-  --color-surface: #faf7f0; /* 抬起的纸面 */
-  --color-sunken: #e9e3d4; /* 下沉 / 次级面 */
-  --color-ink: #1b1713; /* 暖墨黑 */
-  --color-muted: #79705f; /* 暖灰褐 */
-  --color-line: #d8d1bf; /* 暖发丝线 */
-  --color-accent: #e0360f; /* 电光朱红 */
-  --color-accent-hover: #bb2908;
-  --color-ok: #1f6b48; /* 松绿 = 有货 */
-  --color-warn: #b06414;
-
-  /* 中文走系统重字重（零加载、原生清晰、不爆性能预算）；
-     拉丁/数字交给加载的 Plex Mono。 */
+  /* 中文走系统字重（零加载、原生清晰）；拉丁/数字交给 Plex Mono。 */
   --font-sans: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
     "Noto Sans SC", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
     sans-serif;
   --font-mono: var(--font-plex-mono), "SFMono-Regular", ui-monospace,
     "Cascadia Code", Menlo, monospace;
+}
 
-  --radius-card: 14px;
+:root,
+.light,
+[data-theme="light"] {
+  /* 页面底：近白微暖；卡片纯白靠边框 + 浅影分层 */
+  --background: oklch(0.988 0.002 85);
+  --foreground: oklch(0.22 0.01 60);
+
+  /* 品牌主色：暖橙红（呼应汉堡 Logo），全站唯一饱和色 */
+  --accent: oklch(0.63 0.2 38);
+  --accent-foreground: oklch(0.99 0 0);
+
+  --muted: oklch(0.52 0.015 60);
+  --border: oklch(0.9 0.006 75);
+  --separator: oklch(0.93 0.005 75);
+
+  /* 表单字段：白底 + 可见描边（白色页面上无边框会“消失”） */
+  --field-background: oklch(1 0 0);
+  --field-border: oklch(0.87 0.008 75);
+  --field-border-width: 1px;
+
+  --radius: 0.625rem;
 }
 
 html {
@@ -32,95 +42,35 @@ html {
 }
 
 body {
-  position: relative;
-  background: var(--color-bg);
-  color: var(--color-ink);
+  background: var(--background);
+  color: var(--foreground);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
-/* 纸张颗粒噪点 —— 全局极淡叠加，制造印刷质感 */
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  pointer-events: none;
-  opacity: 0.05;
-  mix-blend-mode: multiply;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-}
-
 ::selection {
-  background: color-mix(in oklab, var(--color-accent) 26%, transparent);
-  color: var(--color-ink);
+  background: color-mix(in oklab, var(--accent) 24%, transparent);
+  color: var(--foreground);
 }
 
-/* ── 印刷登记十字标（装饰角标） ───────────────────────────── */
-.reg-mark {
-  position: absolute;
-  width: 14px;
-  height: 14px;
-  color: var(--color-accent);
-  opacity: 0.65;
-}
-.reg-mark::before,
-.reg-mark::after {
-  content: "";
-  position: absolute;
-  background: currentColor;
-}
-.reg-mark::before {
-  left: 50%;
-  top: 0;
-  width: 1.5px;
-  height: 100%;
-  transform: translateX(-50%);
-}
-.reg-mark::after {
-  top: 50%;
-  left: 0;
-  height: 1.5px;
-  width: 100%;
-  transform: translateY(-50%);
-}
-
-/* ── 首屏点阵背景 + 暖光晕 ─────────────────────────────────── */
-.hero-bg {
+/* ── 首屏：极淡的暖橙光晕 + 网点，保持“亮而不空” ─────────────── */
+.hero-wash {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background-image: radial-gradient(
-    var(--color-line) 1px,
-    transparent 1px
-  );
-  background-size: 22px 22px;
-  -webkit-mask-image: radial-gradient(
-    ellipse 70% 60% at 30% 0%,
-    #000 0%,
-    transparent 72%
-  );
-  mask-image: radial-gradient(
-    ellipse 70% 60% at 30% 0%,
-    #000 0%,
-    transparent 72%
-  );
-  opacity: 0.5;
-}
-.hero-glow {
-  position: absolute;
-  top: -22%;
-  right: -14%;
-  width: 34rem;
-  height: 34rem;
-  pointer-events: none;
-  background: radial-gradient(
-    circle,
-    color-mix(in oklab, var(--color-accent) 10%, transparent) 0%,
-    transparent 64%
-  );
-  filter: blur(10px);
+  background:
+    radial-gradient(
+      ellipse 60% 55% at 78% 8%,
+      color-mix(in oklab, var(--accent) 9%, transparent) 0%,
+      transparent 70%
+    ),
+    radial-gradient(var(--separator) 1px, transparent 1px);
+  background-size:
+    auto,
+    22px 22px;
+  -webkit-mask-image: linear-gradient(#000 55%, transparent);
+  mask-image: linear-gradient(#000 55%, transparent);
 }
 
 /* ── 实时在线脉冲点 ───────────────────────────────────────── */
@@ -129,12 +79,12 @@ body::before {
   width: 7px;
   height: 7px;
   border-radius: 9999px;
-  background: var(--color-ok);
+  background: var(--success);
   animation: livepulse 1.8s ease-out infinite;
 }
 @keyframes livepulse {
   0% {
-    box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-ok) 55%, transparent);
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--success) 55%, transparent);
   }
   70% {
     box-shadow: 0 0 0 7px transparent;
@@ -147,43 +97,17 @@ body::before {
 /* ── 错峰入场 ─────────────────────────────────────────────── */
 .reveal {
   opacity: 0;
-  animation: reveal 0.72s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: reveal 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 @keyframes reveal {
   from {
     opacity: 0;
-    transform: translateY(16px);
+    transform: translateY(14px);
   }
   to {
     opacity: 1;
     transform: none;
   }
-}
-
-/* ── 票据卡：打孔票根 + 撕裂虚线 ──────────────────────────── */
-.ticket {
-  position: relative;
-}
-.ticket-perf {
-  position: relative;
-  border-top: 1.5px dashed var(--color-line);
-}
-/* 左右两侧的打孔缺口（用页面底色"挖"出半圆） */
-.ticket-perf::before,
-.ticket-perf::after {
-  content: "";
-  position: absolute;
-  top: -8px;
-  width: 16px;
-  height: 16px;
-  border-radius: 9999px;
-  background: var(--color-bg);
-}
-.ticket-perf::before {
-  left: -9px;
-}
-.ticket-perf::after {
-  right: -9px;
 }
 
 /* CTA 箭头位移 */
@@ -204,7 +128,7 @@ body::before {
   .live-dot {
     animation: none;
   }
-  body::before {
-    display: none;
+  .cta-arrow {
+    transition: none;
   }
 }

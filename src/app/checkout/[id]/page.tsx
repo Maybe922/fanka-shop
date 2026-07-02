@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
+import { Alert, Button, Card } from "@heroui/react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { CheckoutOrderButton } from "@/components/CheckoutOrderButton";
 import { getBuyer } from "@/lib/supabase/auth-server";
@@ -58,7 +59,7 @@ export default async function CheckoutPage({
       <div className="mx-auto max-w-5xl px-5 py-10">
         <Link
           href="/"
-          className="text-sm text-muted transition-colors hover:text-ink"
+          className="text-sm text-muted transition-colors hover:text-foreground"
         >
           ← 返回首页
         </Link>
@@ -75,40 +76,48 @@ export default async function CheckoutPage({
               </p>
             )}
 
-            <dl className="mt-8 space-y-1 border-t border-line pt-6 text-sm text-muted">
+            <dl className="mt-8 space-y-1 border-t border-separator pt-6 text-sm text-muted">
               <div className="flex gap-2">
                 <dt>支付方式：</dt>
-                <dd className="text-ink">微信支付（扫码）</dd>
+                <dd className="text-foreground">微信支付（扫码）</dd>
               </div>
               <div className="flex gap-2">
                 <dt>发货方式：</dt>
-                <dd className="text-ink">付款后自动发卡，订单页即时查看</dd>
+                <dd className="text-foreground">
+                  付款后自动发卡，订单页即时查看
+                </dd>
               </div>
             </dl>
           </section>
 
           {/* 右：订单信息 */}
-          <aside className="h-fit rounded-card border border-line bg-surface p-6 lg:sticky lg:top-6">
+          <Card className="h-fit p-6 lg:sticky lg:top-20">
             <h2 className="text-sm font-semibold text-muted">订单信息</h2>
             <Price
               cents={product.price_cents}
-              className="mt-2 block text-3xl font-semibold tracking-tight"
+              className="mt-2 flex items-baseline text-3xl font-semibold tracking-tight"
+              symbolClassName="mr-0.5 text-xl text-accent"
             />
 
             {/* 下单须知 */}
-            <div className="mt-5 rounded-xl border border-warn/25 bg-warn/5 p-4 text-xs leading-relaxed text-ink/80">
-              <p className="font-semibold text-ink">下单须知</p>
-              <p className="mt-1.5">
-                本商品为虚拟卡密，<b>付款后自动发货、一经发出不支持退款</b>。
-                卡密会显示在订单页，并与你的登录邮箱绑定，可随时在「我的订单」找回。
-                如遇卡密问题请保留订单号联系客服处理。
-              </p>
-            </div>
+            <Alert status="warning" className="mt-5">
+              <Alert.Indicator />
+              <Alert.Content>
+                <Alert.Title>下单须知</Alert.Title>
+                <Alert.Description>
+                  本商品为虚拟卡密，<b>付款后自动发货、一经发出不支持退款</b>。
+                  卡密会显示在订单页，并与你的登录邮箱绑定，可随时在「我的订单」找回。
+                  如遇卡密问题请保留订单号联系客服处理。
+                </Alert.Description>
+              </Alert.Content>
+            </Alert>
 
             {/* 绑定邮箱 */}
             <div className="mt-5">
-              <p className="text-xs font-medium text-muted">收货邮箱（订单绑定）</p>
-              <div className="mt-1 truncate rounded-lg border border-line bg-bg px-3 py-2.5 text-sm">
+              <p className="text-xs font-medium text-muted">
+                收货邮箱（订单绑定）
+              </p>
+              <div className="mt-1.5 truncate rounded-lg border border-border bg-surface-secondary px-3 py-2.5 text-sm">
                 {buyer.email}
               </div>
               <p className="mt-1.5 text-xs text-muted">
@@ -119,17 +128,14 @@ export default async function CheckoutPage({
             {/* 下单 */}
             <div className="mt-6">
               {soldOut ? (
-                <button
-                  disabled
-                  className="w-full cursor-not-allowed rounded-xl border border-line bg-bg py-3 text-sm font-medium text-muted"
-                >
+                <Button isDisabled variant="tertiary" fullWidth size="lg">
                   该商品暂时缺货
-                </button>
+                </Button>
               ) : (
                 <CheckoutOrderButton productId={product.id} />
               )}
             </div>
-          </aside>
+          </Card>
         </div>
       </div>
     </main>

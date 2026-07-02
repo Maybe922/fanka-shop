@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@heroui/react";
 
-// 结账确认页的「立即下单」按钮：调 /api/orders 创建订单并跳转虎皮椒收银台。
+// 结账确认页的「立即下单」按钮：调 /api/orders 创建订单并跳转自建收银台。
 export function CheckoutOrderButton({ productId }: { productId: string }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,15 +37,23 @@ export function CheckoutOrderButton({ productId }: { productId: string }) {
 
   return (
     <div>
-      <button
-        onClick={placeOrder}
-        disabled={loading}
-        className="flex w-full items-center justify-center gap-2 rounded-xl bg-ink py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+      <Button
+        variant="primary"
+        size="lg"
+        fullWidth
+        onPress={placeOrder}
+        isDisabled={loading}
       >
         {loading ? "正在跳转支付…" : "立即下单"}
-        {!loading && <span aria-hidden>→</span>}
-      </button>
-      {error && <p className="mt-2 text-center text-xs text-warn">{error}</p>}
+        {!loading && (
+          <span className="cta-arrow font-mono" aria-hidden>
+            →
+          </span>
+        )}
+      </Button>
+      {error && (
+        <p className="mt-2 text-center text-xs text-danger">{error}</p>
+      )}
       <p className="mt-3 text-center text-xs text-muted">
         下单后将跳转微信支付，请在 5 分钟内完成支付
       </p>

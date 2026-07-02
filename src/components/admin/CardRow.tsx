@@ -1,18 +1,13 @@
 "use client";
 
 import { useActionState } from "react";
+import { Button, Chip, Input, Spinner, TextField } from "@heroui/react";
 import {
   updateCardSecret,
   deleteCard,
   type CardActionState,
 } from "@/app/admin/actions";
 import type { AdminCard } from "@/lib/types";
-
-function Spinner() {
-  return (
-    <span className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
-  );
-}
 
 export function CardRow({ card }: { card: AdminCard }) {
   const [saveState, saveAction, saving] = useActionState<
@@ -32,10 +27,11 @@ export function CardRow({ card }: { card: AdminCard }) {
   return (
     <li className="space-y-1">
       <div className="flex items-center gap-2">
-        <span
-          className={`shrink-0 rounded px-1.5 py-0.5 text-[11px] font-medium ${
-            reserved ? "bg-amber-100 text-amber-600" : "bg-ok/10 text-ok"
-          }`}
+        <Chip
+          size="sm"
+          variant="soft"
+          color={reserved ? "warning" : "success"}
+          className="shrink-0"
           title={
             reserved
               ? "已被一笔待支付订单占用，支付完成或超时后自动释放"
@@ -43,25 +39,30 @@ export function CardRow({ card }: { card: AdminCard }) {
           }
         >
           {reserved ? "占用中" : "未售"}
-        </span>
+        </Chip>
 
         <form action={saveAction} className="flex flex-1 items-center gap-1.5">
           <input type="hidden" name="cardId" value={card.id} />
-          <input
+          <TextField
             name="secret"
             defaultValue={card.secret}
-            required
-            disabled={saving}
-            className="w-full rounded-lg border border-line bg-bg px-2.5 py-1 font-mono text-xs outline-none focus:border-accent disabled:opacity-60"
-          />
-          <button
-            type="submit"
-            disabled={saving}
-            className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-line px-2.5 py-1 text-xs text-muted transition-colors hover:border-accent hover:text-accent disabled:opacity-60"
+            isRequired
+            isDisabled={saving}
+            aria-label="卡密内容"
+            className="flex-1"
           >
-            {saving && <Spinner />}
+            <Input className="font-mono text-xs" />
+          </TextField>
+          <Button
+            type="submit"
+            variant="outline"
+            size="sm"
+            isDisabled={saving}
+            className="shrink-0"
+          >
+            {saving && <Spinner size="sm" color="current" />}
             {saving ? "保存中" : "保存"}
-          </button>
+          </Button>
         </form>
 
         {reserved ? (
@@ -69,22 +70,24 @@ export function CardRow({ card }: { card: AdminCard }) {
         ) : (
           <form action={delAction}>
             <input type="hidden" name="cardId" value={card.id} />
-            <button
+            <Button
               type="submit"
-              disabled={deleting}
-              className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-line px-2.5 py-1 text-xs text-muted transition-colors hover:border-warn hover:text-warn disabled:opacity-60"
+              variant="danger-soft"
+              size="sm"
+              isDisabled={deleting}
+              className="shrink-0"
             >
-              {deleting && <Spinner />}
+              {deleting && <Spinner size="sm" color="current" />}
               {deleting ? "删除中" : "删除"}
-            </button>
+            </Button>
           </form>
         )}
       </div>
 
       {feedback && (
         <p
-          className={`pl-[3.25rem] text-[11px] ${
-            feedback.ok ? "text-ok" : "text-warn"
+          className={`pl-1 text-[11px] ${
+            feedback.ok ? "text-success" : "text-warning"
           }`}
           role="status"
         >

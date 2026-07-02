@@ -61,7 +61,9 @@ export function TurnstileWidget({ siteKey, onVerify, onExpire, onError }: Props)
   const ref = useRef<HTMLDivElement>(null);
   // 用 ref 保存最新回调，避免回调变化导致 widget 重渲染（token 一次性，重渲染会丢）。
   const callbacks = useRef({ onVerify, onExpire, onError });
-  callbacks.current = { onVerify, onExpire, onError };
+  useEffect(() => {
+    callbacks.current = { onVerify, onExpire, onError };
+  });
 
   useEffect(() => {
     let widgetId: string | undefined;

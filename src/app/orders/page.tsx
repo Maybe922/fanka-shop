@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Card, Chip, buttonVariants } from "@heroui/react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { getBuyer } from "@/lib/supabase/auth-server";
 import { getMyOrders, expireStaleOrders } from "@/lib/data";
@@ -30,12 +31,15 @@ export default async function OrdersPage() {
         </p>
 
         {orders.length === 0 ? (
-          <div className="mt-8 rounded-card border border-dashed border-line bg-surface px-6 py-16 text-center">
+          <Card
+            variant="secondary"
+            className="mt-8 border border-dashed border-border px-6 py-16 text-center shadow-none"
+          >
             <p className="text-sm font-medium">还没有订单</p>
             <Link href="/" className="mt-3 inline-block text-sm text-accent">
               去首页挑选商品 →
             </Link>
-          </div>
+          </Card>
         ) : (
           <ul className="mt-8 space-y-3">
             {orders.map((o) => (
@@ -46,7 +50,7 @@ export default async function OrdersPage() {
 
         <Link
           href="/"
-          className="mt-8 inline-block text-sm text-muted transition-colors hover:text-ink"
+          className="mt-8 inline-block text-sm text-muted transition-colors hover:text-foreground"
         >
           ← 返回首页
         </Link>
@@ -55,43 +59,41 @@ export default async function OrdersPage() {
   );
 }
 
-function StatusBadge({ order }: { order: AdminOrder }) {
+function StatusChip({ order }: { order: AdminOrder }) {
   if (order.status === "pending") {
     return (
-      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-500">
-        <span className="inline-block h-2 w-2 rounded-full bg-amber-500" /> 待支付
-      </span>
+      <Chip size="sm" variant="soft" color="warning">
+        待支付
+      </Chip>
     );
   }
   if (order.status === "expired") {
     return (
-      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-red-600">
-        <span className="inline-block h-2 w-2 rounded-full bg-red-600" /> 已过期
-      </span>
+      <Chip size="sm" variant="soft" color="default">
+        已过期
+      </Chip>
     );
   }
   if (!order.card_id) {
     return (
-      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-red-600">
-        <span className="inline-block h-2 w-2 rounded-full bg-red-600" /> 已付·缺货
-      </span>
+      <Chip size="sm" variant="soft" color="danger">
+        已付·缺货
+      </Chip>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-ok">
-      <span className="inline-block h-2 w-2 rounded-full bg-ok" /> 已支付
-    </span>
+    <Chip size="sm" variant="soft" color="success">
+      已支付
+    </Chip>
   );
 }
 
 function OrderAction({ order }: { order: AdminOrder }) {
-  const cls =
-    "shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition-colors";
   if (order.status === "pending") {
     return (
       <Link
         href={`/order/${order.id}/pay`}
-        className={`${cls} bg-ink text-white hover:opacity-90`}
+        className={`${buttonVariants({ variant: "primary", size: "sm" })} shrink-0`}
       >
         去支付
       </Link>
@@ -101,7 +103,7 @@ function OrderAction({ order }: { order: AdminOrder }) {
     return (
       <Link
         href={`/checkout/${order.product_id}`}
-        className={`${cls} border border-line text-muted hover:border-accent hover:text-accent`}
+        className={`${buttonVariants({ variant: "outline", size: "sm" })} shrink-0`}
       >
         重新下单
       </Link>
@@ -110,7 +112,7 @@ function OrderAction({ order }: { order: AdminOrder }) {
   return (
     <Link
       href={`/order/${order.id}`}
-      className={`${cls} border border-accent text-accent hover:bg-accent hover:text-white`}
+      className={`${buttonVariants({ variant: "secondary", size: "sm" })} shrink-0`}
     >
       查看卡密
     </Link>
@@ -119,24 +121,26 @@ function OrderAction({ order }: { order: AdminOrder }) {
 
 function OrderRow({ order }: { order: AdminOrder }) {
   return (
-    <li className="flex items-center justify-between gap-4 rounded-card border border-line bg-surface p-4">
-      <div className="min-w-0">
-        <div className="flex items-center gap-3">
-          <span className="truncate text-sm font-semibold">
-            {order.product_name ?? "—"}
-          </span>
-          <StatusBadge order={order} />
+    <li>
+      <Card className="flex flex-row items-center justify-between gap-4 p-4">
+        <div className="min-w-0">
+          <div className="flex items-center gap-3">
+            <span className="truncate text-sm font-semibold">
+              {order.product_name ?? "—"}
+            </span>
+            <StatusChip order={order} />
+          </div>
+          <p className="mt-1.5 text-xs text-muted">
+            <Price cents={order.amount_cents} />
+            {" · "}
+            {formatTime(order.created_at)}
+          </p>
+          <p className="mt-0.5 truncate font-mono text-xs text-muted">
+            订单号 {order.trade_order_id}
+          </p>
         </div>
-        <p className="mt-1 text-xs text-muted">
-          <Price cents={order.amount_cents} />
-          {" · "}
-          {formatTime(order.created_at)}
-        </p>
-        <p className="mt-0.5 truncate font-mono text-xs text-muted">
-          订单号 {order.trade_order_id}
-        </p>
-      </div>
-      <OrderAction order={order} />
+        <OrderAction order={order} />
+      </Card>
     </li>
   );
 }

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Alert, Button } from "@heroui/react";
 import { isAdminEmail } from "@/lib/admin-auth";
 import { getBuyer } from "@/lib/supabase/auth-server";
 import {
@@ -56,13 +57,16 @@ export default async function AdminPage({
 
   return (
     <main className="flex-1">
-      <header className="border-b border-line bg-surface">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-5 py-4">
+      <header className="sticky top-0 z-50 border-b border-border bg-background/85 backdrop-blur-md">
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-5 py-3.5">
           <div className="flex items-baseline gap-3">
             <span className="text-lg font-semibold tracking-tight">
               {site.name} · 后台
             </span>
-            <Link href="/" className="text-sm text-muted hover:text-ink">
+            <Link
+              href="/"
+              className="text-sm text-muted transition-colors hover:text-foreground"
+            >
               查看前台 ↗
             </Link>
           </div>
@@ -71,7 +75,9 @@ export default async function AdminPage({
               {buyer.email}
             </span>
             <form action={signOut}>
-              <button className="transition-colors hover:text-warn">退出登录</button>
+              <Button type="submit" variant="ghost" size="sm">
+                退出登录
+              </Button>
             </form>
           </div>
         </div>
@@ -79,15 +85,12 @@ export default async function AdminPage({
 
       <div className="mx-auto max-w-5xl space-y-12 px-5 py-10">
         {(error || ok) && (
-          <div
-            className={`rounded-lg px-4 py-3 text-sm ${
-              error
-                ? "border border-warn/30 bg-warn/5 text-warn"
-                : "border border-ok/30 bg-ok/5 text-ok"
-            }`}
-          >
-            {error ?? ok}
-          </div>
+          <Alert status={error ? "danger" : "success"}>
+            <Alert.Indicator />
+            <Alert.Content>
+              <Alert.Description>{error ?? ok}</Alert.Description>
+            </Alert.Content>
+          </Alert>
         )}
 
         <StatsOverview

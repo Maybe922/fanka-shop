@@ -1,3 +1,4 @@
+import { Card } from "@heroui/react";
 import { Price } from "@/components/Price";
 
 type Props = {
@@ -6,7 +7,6 @@ type Props = {
   revenueCents: number;
 };
 
-const cardClass = "rounded-card border border-line bg-surface px-5 py-4";
 const labelClass =
   "font-mono text-[11px] uppercase tracking-[0.12em] text-muted";
 const valueClass = "mt-2 font-mono text-2xl font-bold tracking-tight";
@@ -17,18 +17,21 @@ export function StatsOverview({ stockLeft, soldOrders, revenueCents }: Props) {
     <section>
       <h2 className="mb-4 text-lg font-semibold tracking-tight">节点概览</h2>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className={cardClass}>
+        <Card className="px-5 py-4">
           <p className={labelClass}>库存剩余</p>
-          <p className={`${valueClass} text-ink`}>{stockLeft}</p>
-        </div>
-        <div className={cardClass}>
+          <p className={valueClass}>{stockLeft}</p>
+        </Card>
+        <Card className="px-5 py-4">
           <p className={labelClass}>售出订单</p>
-          <p className={`${valueClass} text-ink`}>{soldOrders}</p>
-        </div>
-        <div className={cardClass}>
+          <p className={valueClass}>{soldOrders}</p>
+        </Card>
+        <Card className="px-5 py-4">
           <p className={labelClass}>销售额</p>
-          <Price cents={revenueCents} className={`${valueClass} block text-ok`} />
-        </div>
+          <Price
+            cents={revenueCents}
+            className={`${valueClass} block text-success`}
+          />
+        </Card>
       </div>
     </section>
   );

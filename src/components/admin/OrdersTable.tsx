@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Chip, Table, buttonVariants } from "@heroui/react";
 import { Price } from "@/components/Price";
 import type { AdminOrder } from "@/lib/types";
 
@@ -28,47 +29,55 @@ export function OrdersTable({ orders, page, pageSize, total }: Props) {
 
   return (
     <div className="space-y-3">
-      <div className="overflow-x-auto rounded-card border border-line bg-surface">
-        <table className="w-full text-left text-sm">
-          <thead className="border-b border-line text-xs text-muted">
-            <tr>
-              <th className="px-4 py-3 font-medium">订单号</th>
-              <th className="px-4 py-3 font-medium">商品</th>
-              <th className="px-4 py-3 font-medium">联系方式</th>
-              <th className="px-4 py-3 font-medium">数量</th>
-              <th className="px-4 py-3 font-medium">金额</th>
-              <th className="px-4 py-3 font-medium">状态</th>
-              <th className="px-4 py-3 font-medium">时间</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-line">
-            {orders.map((o) => (
-              <tr key={o.id}>
-                <td
-                  className="whitespace-nowrap px-4 py-3 font-mono text-xs text-muted"
-                  title={o.trade_order_id}
-                >
-                  {shortId(o.trade_order_id)}
-                </td>
-                <td className="px-4 py-3">{o.product_name ?? "—"}</td>
-                <td className="whitespace-nowrap px-4 py-3 text-muted">
-                  {o.contact ?? "—"}
-                </td>
-                <td className="px-4 py-3 font-mono">1</td>
-                <td className="px-4 py-3">
-                  <Price cents={o.amount_cents} />
-                </td>
-                <td className="px-4 py-3">
-                  <OrderBadge order={o} />
-                </td>
-                <td className="whitespace-nowrap px-4 py-3 text-muted">
-                  {formatTime(o.created_at)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <Table.Root>
+        <Table.ScrollContainer>
+          <Table.Content aria-label="最近订单">
+            <Table.Header>
+              <Table.Column isRowHeader>订单号</Table.Column>
+              <Table.Column>商品</Table.Column>
+              <Table.Column>联系方式</Table.Column>
+              <Table.Column>数量</Table.Column>
+              <Table.Column>金额</Table.Column>
+              <Table.Column>状态</Table.Column>
+              <Table.Column>时间</Table.Column>
+            </Table.Header>
+            <Table.Body>
+              {orders.map((o) => (
+                <Table.Row key={o.id} id={o.id}>
+                  <Table.Cell>
+                    <span
+                      className="whitespace-nowrap font-mono text-xs text-muted"
+                      title={o.trade_order_id}
+                    >
+                      {shortId(o.trade_order_id)}
+                    </span>
+                  </Table.Cell>
+                  <Table.Cell>{o.product_name ?? "—"}</Table.Cell>
+                  <Table.Cell>
+                    <span className="whitespace-nowrap text-muted">
+                      {o.contact ?? "—"}
+                    </span>
+                  </Table.Cell>
+                  <Table.Cell>
+                    <span className="font-mono">1</span>
+                  </Table.Cell>
+                  <Table.Cell>
+                    <Price cents={o.amount_cents} />
+                  </Table.Cell>
+                  <Table.Cell>
+                    <OrderChip order={o} />
+                  </Table.Cell>
+                  <Table.Cell>
+                    <span className="whitespace-nowrap text-muted">
+                      {formatTime(o.created_at)}
+                    </span>
+                  </Table.Cell>
+                </Table.Row>
+              ))}
+            </Table.Body>
+          </Table.Content>
+        </Table.ScrollContainer>
+      </Table.Root>
 
       {totalPages > 1 && (
         <div className="flex items-center justify-between text-xs text-muted">
@@ -98,48 +107,47 @@ function PageLink({
   disabled: boolean;
   children: React.ReactNode;
 }) {
-  const base =
-    "rounded-lg border px-3 py-1.5 transition-colors";
+  const cls = buttonVariants({ variant: "outline", size: "sm" });
   if (disabled) {
     return (
-      <span className={`${base} border-line/60 text-muted/50`}>{children}</span>
+      <span className={`${cls} pointer-events-none opacity-50`}>
+        {children}
+      </span>
     );
   }
   return (
-    <Link
-      href={`/admin?page=${page}#orders`}
-      className={`${base} border-line text-ink hover:border-accent hover:text-accent`}
-    >
+    <Link href={`/admin?page=${page}#orders`} className={cls}>
       {children}
     </Link>
   );
 }
 
-// 状态药丸：绿底=已发货，描边=待支付/已过期/缺货。
-function OrderBadge({ order }: { order: AdminOrder }) {
-  const pill =
-    "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium";
-
+// 状态标签：绿=已发货，黄=待支付，红=缺货，灰=已过期。
+function OrderChip({ order }: { order: AdminOrder }) {
   if (order.status === "pending") {
     return (
-      <span className={`${pill} border border-amber-300 text-amber-600`}>
+      <Chip size="sm" variant="soft" color="warning">
         待支付
-      </span>
+      </Chip>
     );
   }
   if (order.status === "expired") {
     return (
-      <span className={`${pill} border border-line text-muted`}>已过期</span>
+      <Chip size="sm" variant="soft" color="default">
+        已过期
+      </Chip>
     );
   }
   if (!order.card_id) {
     return (
-      <span className={`${pill} border border-red-300 text-red-600`}>
+      <Chip size="sm" variant="soft" color="danger">
         已付·缺货
-      </span>
+      </Chip>
     );
   }
   return (
-    <span className={`${pill} bg-ok/10 text-ok`}>已发货</span>
+    <Chip size="sm" variant="soft" color="success">
+      已发货
+    </Chip>
   );
 }

@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { Card } from "@heroui/react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { getBuyer } from "@/lib/supabase/auth-server";
 import { LoginForm } from "./LoginForm";
@@ -24,11 +25,13 @@ export default async function LoginPage({
     <main className="flex-1">
       <SiteHeader />
       <div className="mx-auto max-w-md px-5 py-16">
-        <h1 className="text-2xl font-semibold tracking-tight">登录 / 注册</h1>
-        <p className="mt-2 text-sm text-muted">
-          输入邮箱获取验证码即可登录，首次登录将自动为你创建账号 —— 无需密码。
-        </p>
-        <LoginForm />
+        <Card className="p-7 sm:p-8">
+          <h1 className="text-2xl font-semibold tracking-tight">登录 / 注册</h1>
+          <p className="mt-2 text-sm leading-relaxed text-muted">
+            输入邮箱获取验证码即可登录，首次登录将自动为你创建账号 —— 无需密码。
+          </p>
+          <LoginForm />
+        </Card>
       </div>
     </main>
   );

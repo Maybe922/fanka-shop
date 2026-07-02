@@ -26,7 +26,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="zh-CN" className={`${plexMono.variable} h-full antialiased`}>
+    <html
+      lang="zh-CN"
+      data-theme="light"
+      className={`${plexMono.variable} light h-full antialiased`}
+    >
       <body className="flex min-h-full flex-col">{children}</body>
     </html>
   );

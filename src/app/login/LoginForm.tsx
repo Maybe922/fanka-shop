@@ -2,12 +2,20 @@
 
 import { useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import {
+  Alert,
+  Button,
+  Input,
+  InputOTP,
+  Label,
+  REGEXP_ONLY_DIGITS,
+  TextField,
+} from "@heroui/react";
 import { requestOtp, verifyOtp } from "./actions";
 import { TurnstileWidget } from "@/components/TurnstileWidget";
 import { publicEnv } from "@/lib/env";
 
-const field =
-  "w-full rounded-lg border border-line bg-bg px-3 py-2.5 text-sm outline-none focus:border-accent";
+const OTP_LENGTH = 6;
 
 // 只允许站内相对路径，防开放重定向。
 function safeNext(raw: string | null): string {
@@ -49,7 +57,9 @@ export function LoginForm() {
         return;
       }
       setPhase("code");
-      setNotice(`验证码已发送至 ${email.trim()}，请查收（10 分钟内有效，注意垃圾箱）`);
+      setNotice(
+        `验证码已发送至 ${email.trim()}，请查收（10 分钟内有效，注意垃圾箱）`,
+      );
     });
   }
 
@@ -69,14 +79,20 @@ export function LoginForm() {
   return (
     <div className="mt-8 space-y-4">
       {notice && (
-        <p className="rounded-lg border border-ok/30 bg-ok/5 px-4 py-3 text-sm text-ok">
-          {notice}
-        </p>
+        <Alert status="success">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Description>{notice}</Alert.Description>
+          </Alert.Content>
+        </Alert>
       )}
       {error && (
-        <p className="rounded-lg border border-warn/30 bg-warn/5 px-4 py-3 text-sm text-warn">
-          {error}
-        </p>
+        <Alert status="danger">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Description>{error}</Alert.Description>
+          </Alert.Content>
+        </Alert>
       )}
 
       {phase === "email" ? (
@@ -85,21 +101,20 @@ export function LoginForm() {
             e.preventDefault();
             send();
           }}
-          className="space-y-4"
+          className="space-y-5"
         >
-          <label className="block">
-            <span className="text-xs font-medium text-muted">邮箱</span>
-            <input
-              type="email"
-              inputMode="email"
-              autoComplete="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              className={`mt-1 ${field}`}
-            />
-          </label>
+          <TextField
+            type="email"
+            value={email}
+            onChange={setEmail}
+            isRequired
+            inputMode="email"
+            autoComplete="email"
+          >
+            <Label>邮箱</Label>
+            <Input placeholder="you@example.com" />
+          </TextField>
+
           {captchaRequired && (
             <TurnstileWidget
               key={captchaNonce}
@@ -109,13 +124,15 @@ export function LoginForm() {
               onError={() => setCaptchaToken(null)}
             />
           )}
-          <button
+
+          <Button
             type="submit"
-            disabled={pending || !captchaReady}
-            className="w-full rounded-lg bg-ink py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+            variant="primary"
+            fullWidth
+            isDisabled={pending || !captchaReady}
           >
             {pending ? "发送中…" : "获取验证码"}
-          </button>
+          </Button>
         </form>
       ) : (
         <form
@@ -123,45 +140,48 @@ export function LoginForm() {
             e.preventDefault();
             verify();
           }}
-          className="space-y-4"
+          className="space-y-5"
         >
-          <label className="block">
-            <span className="text-xs font-medium text-muted">
-              6 位验证码（发送至 {email.trim()}）
-            </span>
-            <input
-              type="text"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              maxLength={6}
-              required
+          <div className="space-y-2">
+            <Label>6 位验证码（发送至 {email.trim()}）</Label>
+            <InputOTP
+              maxLength={OTP_LENGTH}
+              pattern={REGEXP_ONLY_DIGITS}
               value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
-              placeholder="______"
-              className={`mt-1 text-center font-mono text-lg tracking-[0.5em] ${field}`}
-            />
-          </label>
-          <button
+              onChange={setCode}
+              autoFocus
+            >
+              <InputOTP.Group>
+                {Array.from({ length: OTP_LENGTH }, (_, i) => (
+                  <InputOTP.Slot key={i} index={i} />
+                ))}
+              </InputOTP.Group>
+            </InputOTP>
+          </div>
+
+          <Button
             type="submit"
-            disabled={pending || code.length !== 6}
-            className="w-full rounded-lg bg-ink py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+            variant="primary"
+            fullWidth
+            isDisabled={pending || code.length !== OTP_LENGTH}
           >
             {pending ? "验证中…" : "登录"}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            disabled={pending}
-            onClick={() => {
+            variant="ghost"
+            fullWidth
+            isDisabled={pending}
+            onPress={() => {
               setPhase("email");
               setCode("");
               setError(null);
               setNotice(null);
               resetCaptcha();
             }}
-            className="w-full text-sm text-muted transition-colors hover:text-ink"
           >
             ← 换个邮箱 / 重新获取
-          </button>
+          </Button>
         </form>
       )}
     </div>

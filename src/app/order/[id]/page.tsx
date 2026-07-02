@@ -47,7 +47,7 @@ export default async function OrderPage({
 
           <Link
             href="/"
-            className="mt-8 inline-block text-sm text-accent transition-colors hover:text-accent-hover"
+            className="mt-8 inline-block text-sm text-accent transition-colors hover:opacity-80"
           >
             ← 返回继续购买
           </Link>

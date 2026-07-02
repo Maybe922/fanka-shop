@@ -1,26 +1,30 @@
 import Link from "next/link";
+import { Button, buttonVariants } from "@heroui/react";
 import { site } from "@/lib/site";
 import { CustomerService } from "@/components/CustomerService";
 import { getBuyer } from "@/lib/supabase/auth-server";
 import { isAdminEmail } from "@/lib/admin-auth";
 import { signOut } from "@/app/login/actions";
 
+const navLink =
+  "rounded-lg px-2.5 py-1.5 text-[13px] text-muted transition-colors hover:bg-surface-secondary hover:text-foreground";
+
 export async function SiteHeader() {
   const buyer = await getBuyer();
   const admin = isAdminEmail(buyer?.email);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-line bg-bg/85 backdrop-blur-md">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3.5">
+    <header className="sticky top-0 z-50 border-b border-border bg-background/85 backdrop-blur-md">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-5 py-3">
         {/* 品牌：logo + 字号商标 */}
-        <Link href="/" className="group flex items-center gap-2.5">
+        <Link href="/" className="group flex shrink-0 items-center gap-2.5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={site.logoUrl}
             alt={site.name}
             width={36}
             height={36}
-            className="h-9 w-9 rounded-[7px] object-contain transition-transform group-hover:-rotate-6"
+            className="h-9 w-9 rounded-lg object-contain transition-transform group-hover:-rotate-6"
           />
           <span className="flex flex-col leading-none">
             <span className="text-[15px] font-semibold tracking-tight">
@@ -35,49 +39,40 @@ export async function SiteHeader() {
         {/* 客服联系方式 */}
         <CustomerService />
 
-        <nav className="flex items-center gap-1 font-mono text-[13px] text-muted">
-          <a
-            href="/#how"
-            className="rounded-md px-2.5 py-1.5 transition-colors hover:bg-sunken hover:text-ink"
-          >
+        <nav className="flex items-center gap-0.5">
+          <Link href="/#how" className={navLink}>
             流程
-          </a>
-          <a
-            href="/#guides"
-            className="hidden rounded-md px-2.5 py-1.5 transition-colors hover:bg-sunken hover:text-ink sm:inline"
-          >
+          </Link>
+          <Link href="/#guides" className={`${navLink} hidden sm:inline`}>
             教程
-          </a>
+          </Link>
 
           {buyer ? (
-            <div className="ml-1 flex items-center gap-1">
-              <Link
-                href="/orders"
-                className="rounded-md px-2.5 py-1.5 transition-colors hover:bg-sunken hover:text-ink"
-              >
+            <div className="ml-1 flex items-center gap-0.5">
+              <Link href="/orders" className={navLink}>
                 订单
               </Link>
               {admin && (
                 <Link
                   href="/admin"
-                  className="rounded-md px-2.5 py-1.5 text-accent transition-colors hover:bg-accent/10"
+                  className="rounded-lg px-2.5 py-1.5 text-[13px] font-medium text-accent transition-colors hover:bg-accent/10"
                 >
                   后台
                 </Link>
               )}
-              <span className="ml-1 hidden max-w-[11rem] truncate border-l border-line pl-3 text-ink sm:inline">
+              <span className="ml-1.5 hidden max-w-[11rem] truncate border-l border-border pl-3 text-[13px] sm:inline">
                 {buyer.email}
               </span>
-              <form action={signOut}>
-                <button className="rounded-md px-2.5 py-1.5 transition-colors hover:text-accent">
+              <form action={signOut} className="ml-0.5">
+                <Button type="submit" variant="ghost" size="sm">
                   退出
-                </button>
+                </Button>
               </form>
             </div>
           ) : (
             <Link
               href="/login"
-              className="ml-1 rounded-md border border-ink bg-ink px-3.5 py-1.5 text-bg transition-colors hover:bg-accent hover:border-accent"
+              className={`${buttonVariants({ variant: "primary", size: "sm" })} ml-1.5`}
             >
               登录
             </Link>

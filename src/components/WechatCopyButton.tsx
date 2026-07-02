@@ -58,14 +58,14 @@ export function WechatCopyButton({ wechat, variant = "chip" }: Props) {
       <button
         type="button"
         onClick={handleCopy}
-        className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-sunken"
+        className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-surface-secondary"
       >
-        <WechatIcon className="h-4 w-4 text-ok" />
+        <WechatIcon className="h-4 w-4 text-success" />
         <span className="flex flex-col">
           <span className="font-mono text-[10px] uppercase tracking-wider text-muted">
             Wechat · 点击复制
           </span>
-          <span className="font-mono text-[13px] text-ink">
+          <span className="font-mono text-[13px]">
             {copied ? "已复制 ✓" : wechat}
           </span>
         </span>
@@ -78,9 +78,9 @@ export function WechatCopyButton({ wechat, variant = "chip" }: Props) {
       type="button"
       onClick={handleCopy}
       title="点击复制微信号"
-      className="flex items-center gap-1.5 rounded-full border border-line bg-surface px-2.5 py-1 text-ink transition-colors hover:border-accent hover:text-accent"
+      className="flex items-center gap-1.5 rounded-full border border-border bg-surface px-2.5 py-1 font-mono transition-colors hover:border-accent hover:text-accent"
     >
-      <WechatIcon className="h-3.5 w-3.5 text-ok" />
+      <WechatIcon className="h-3.5 w-3.5 text-success" />
       {copied ? "已复制 ✓" : wechat}
     </button>
   );

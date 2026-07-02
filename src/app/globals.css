@@ -25,6 +25,12 @@
   --accent: #e74e10;
   --accent-foreground: oklch(0.99 0 0);
 
+  /* 成功/库存绿：深绿文字 + 淡薄荷底（#E3F7E8），压掉默认的荧光绿 */
+  --success: #1e7a45;
+  --success-foreground: oklch(0.99 0 0);
+  --success-soft: #e3f7e8;
+  --success-soft-foreground: #1e7a45;
+
   --muted: oklch(0.52 0.015 60);
   --border: oklch(0.9 0.006 75);
   --separator: oklch(0.93 0.005 75);

@@ -20,7 +20,7 @@ import os from "node:os";
 const ENV_FILE = process.env.ENV_FILE ?? path.resolve(".env.local");
 const BACKUP_ROOT =
   process.env.BACKUP_ROOT ?? path.join(os.homedir(), "backups", "fanka");
-const KEEP_DAYS = 30;
+const KEEP_DAYS = 7;
 const TABLES = ["products", "cards", "orders", "articles"];
 const PAGE_SIZE = 1000;
 const FETCH_TIMEOUT_MS = 30_000;

@@ -84,7 +84,7 @@ curl -s "https://api.telegram.org/bot<TOKEN>/setWebhook" \
 
 ### 数据备份（VPS cron）
 
-卡密/订单是店的命根子。`scripts/backup-supabase.mjs` 用 service key 走 REST 把四张业务表全量导出为 gzip JSON（表结构在 `supabase/schema.sql`，git 已管），保留 30 天，失败时 Telegram 报警。在 VPS 上加 cron：
+卡密/订单是店的命根子。`scripts/backup-supabase.mjs` 用 service key 走 REST 把四张业务表全量导出为 gzip JSON（表结构在 `supabase/schema.sql`，git 已管），保留 7 天，失败时 Telegram 报警。在 VPS 上加 cron：
 
 ```bash
 crontab -e

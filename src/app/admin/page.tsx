@@ -13,6 +13,7 @@ import {
 } from "@/lib/data";
 import type { AdminCard } from "@/lib/types";
 import { signOut } from "@/app/login/actions";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { NewProductForm } from "@/components/admin/NewProductForm";
 import { AdminProductCard } from "@/components/admin/AdminProductCard";
 import { NewArticleForm } from "@/components/admin/NewArticleForm";
@@ -74,6 +75,7 @@ export default async function AdminPage({
             <span className="hidden max-w-[12rem] truncate sm:inline">
               {buyer.email}
             </span>
+            <ThemeToggle />
             <form action={signOut}>
               <Button type="submit" variant="ghost" size="sm">
                 退出登录

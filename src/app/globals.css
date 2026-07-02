@@ -14,7 +14,8 @@
     "Cascadia Code", Menlo, monospace;
 }
 
-:root,
+/* 注意：浅色覆盖不能挂在 :root 上——本文件的规则不分层，:root 会在
+   暗色模式下压过 HeroUI 的 .dark 变量。始终由 <html> 上的类决定主题。 */
 .light,
 [data-theme="light"] {
   /* 页面底：近白微暖；卡片纯白靠边框 + 浅影分层 */
@@ -44,6 +45,41 @@
   /* 表单字段：白底 + 可见描边（白色页面上无边框会“消失”） */
   --field-background: oklch(1 0 0);
   --field-border: oklch(0.87 0.008 75);
+  --field-border-width: 1px;
+
+  --radius: 0.625rem;
+}
+
+/* ── 暗色主题：暖近黑纸面，品牌橙不变，状态色提亮以保证暗底可读 ── */
+.dark,
+[data-theme="dark"] {
+  --background: oklch(0.145 0.006 60);
+  --foreground: oklch(0.93 0.005 75);
+
+  --surface: oklch(0.19 0.006 60);
+  --surface-secondary: oklch(0.225 0.006 60);
+  --surface-tertiary: oklch(0.25 0.006 60);
+  --overlay: oklch(0.21 0.006 60);
+
+  --accent: #e74e10;
+  --accent-foreground: oklch(0.99 0 0);
+
+  --success: #46b876;
+  --success-foreground: oklch(0.15 0.01 152);
+  --success-soft: #142d1e;
+  --success-soft-foreground: #5fce8d;
+
+  --warning: #d99a3d;
+  --warning-foreground: oklch(0.15 0.01 75);
+  --warning-soft: #2d2312;
+  --warning-soft-foreground: #e2ab55;
+
+  --muted: oklch(0.68 0.012 60);
+  --border: oklch(0.29 0.008 60);
+  --separator: oklch(0.26 0.007 60);
+
+  --field-background: oklch(0.21 0.006 60);
+  --field-border: oklch(0.33 0.008 60);
   --field-border-width: 1px;
 
   --radius: 0.625rem;

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Button, buttonVariants } from "@heroui/react";
 import { site } from "@/lib/site";
 import { CustomerService } from "@/components/CustomerService";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { getBuyer } from "@/lib/supabase/auth-server";
 import { isAdminEmail } from "@/lib/admin-auth";
 import { signOut } from "@/app/login/actions";
@@ -46,6 +47,7 @@ export async function SiteHeader() {
           <Link href="/#guides" className={`${navLink} hidden sm:inline`}>
             教程
           </Link>
+          <ThemeToggle />
 
           {buyer ? (
             <div className="ml-1 flex items-center gap-0.5">

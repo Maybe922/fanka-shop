@@ -20,6 +20,10 @@ export const metadata: Metadata = {
   ...(isTestEnv ? { robots: { index: false, follow: false } } : {}),
 };
 
+// 首屏无闪烁恢复深色偏好：在正文渲染前同步执行，只读 localStorage 常量键。
+// 默认浅色（品牌主形态）；用户手动切过深色才记忆为深色。
+const THEME_INIT = `(function(){try{if(localStorage.getItem("theme")==="dark"){var e=document.documentElement;e.classList.remove("light");e.classList.add("dark");e.dataset.theme="dark"}}catch(t){}})()`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -30,8 +34,12 @@ export default function RootLayout({
       lang="zh-CN"
       data-theme="light"
       className={`${plexMono.variable} light h-full antialiased`}
+      suppressHydrationWarning
     >
-      <body className="flex min-h-full flex-col">{children}</body>
+      <body className="flex min-h-full flex-col">
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
+        {children}
+      </body>
     </html>
   );
 }

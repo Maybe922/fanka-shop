@@ -57,9 +57,30 @@ TURNSTILE_SECRET_KEY=
 TELEGRAM_BOT_TOKEN=
 TELEGRAM_CHAT_ID=
 
+# TG 远程补货（可选）：webhook 验签密钥，openssl rand -hex 32 生成（见下方章节）
+TELEGRAM_WEBHOOK_SECRET=
+
 # 运营告警 webhook（可选，与 TG 并存；支持 Server酱/PushPlus 等表单式地址）
 ALERT_WEBHOOK_URL=
 ```
+
+### TG 远程补货（可选）
+
+配好上面三个 `TELEGRAM_*` 变量并部署后，注册 webhook（本地终端执行一次，域名换成你的）：
+
+```bash
+curl -s "https://api.telegram.org/bot<TOKEN>/setWebhook" \
+  -d "url=https://你的域名/api/telegram" \
+  -d "secret_token=<TELEGRAM_WEBHOOK_SECRET 的值>" \
+  -d "allowed_updates=[\"message\"]"
+```
+
+之后在 TG 里私聊机器人即可远程管库存：
+
+- `/list` — 查看商品与库存
+- `/add 序号`（或商品名），换行后粘贴卡密（每行一张）— 补货并重新武装售罄提醒
+
+安全设计：webhook 带 secret_token 验签、只响应你的 chat_id、**只进不出**（没有任何读出卡密的命令）；卡密入库后机器人会立刻删掉你发的原消息，聊天记录不留卡密。想关闭功能：`curl "https://api.telegram.org/bot<TOKEN>/deleteWebhook"`。
 
 ---
 

@@ -47,7 +47,6 @@ export async function SiteHeader() {
           <Link href="/#guides" className={`${navLink} hidden sm:inline`}>
             教程
           </Link>
-          <ThemeToggle />
 
           {buyer ? (
             <div className="ml-1 flex items-center gap-0.5">
@@ -79,6 +78,10 @@ export async function SiteHeader() {
               登录
             </Link>
           )}
+
+          <span className="ml-1.5">
+            <ThemeToggle />
+          </span>
         </nav>
       </div>
     </header>

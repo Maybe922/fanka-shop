@@ -82,6 +82,22 @@ curl -s "https://api.telegram.org/bot<TOKEN>/setWebhook" \
 
 安全设计：webhook 带 secret_token 验签、只响应你的 chat_id、**只进不出**（没有任何读出卡密的命令）；卡密入库后机器人会立刻删掉你发的原消息，聊天记录不留卡密。想关闭功能：`curl "https://api.telegram.org/bot<TOKEN>/deleteWebhook"`。
 
+### 数据备份（VPS cron）
+
+卡密/订单是店的命根子。`scripts/backup-supabase.mjs` 用 service key 走 REST 把四张业务表全量导出为 gzip JSON（表结构在 `supabase/schema.sql`，git 已管），保留 30 天，失败时 Telegram 报警。在 VPS 上加 cron：
+
+```bash
+crontab -e
+# 每天 04:35 备份到 ~/backups/fanka/<日期>/
+35 4 * * * cd ~/fanka-shop && /usr/bin/node scripts/backup-supabase.mjs >> ~/backups/fanka/backup.log 2>&1
+```
+
+恢复：解压对应表的 `json.gz`，在 Supabase 后台 Table Editor 导入或用 supabase-js 灌回。
+
+### 下单限流（防囤库存）
+
+下单即预占卡 20 分钟，为防脚本囤空库存有三道闸（`src/app/api/orders/route.ts`）：单账号最多 3 笔未付订单、同 IP 最多 6 笔未付订单、单账号每小时最多下 10 单。IP 限流依赖 `orders.ip` 列（schema.sql 已含，老库补一句 `alter table orders add column if not exists ip text;`），列不存在时自动放行不误伤。
+
 ---
 
 ## 5. 部署到 Vercel

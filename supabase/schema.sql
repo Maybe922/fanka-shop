@@ -76,6 +76,7 @@ alter table orders add column if not exists email text;
 alter table orders add column if not exists pay_code text;
 alter table orders add column if not exists expires_at timestamptz;
 alter table orders add column if not exists stock_alerted_at timestamptz; -- 「已付但缺货」告警去重标记
+alter table orders add column if not exists ip text; -- 下单来源 IP（限流：同 IP 未付订单上限）
 
 alter table cards  drop constraint if exists cards_status_check;
 alter table cards  add  constraint cards_status_check  check (status in ('unsold','reserved','sold'));
@@ -86,6 +87,7 @@ create index if not exists idx_cards_product_status on cards (product_id, status
 create index if not exists idx_articles_published on articles (is_published, sort_order, created_at);
 create index if not exists idx_orders_created on orders (created_at desc);
 create index if not exists idx_orders_user on orders (user_id, created_at desc);
+create index if not exists idx_orders_ip_pending on orders (ip) where status = 'pending'; -- 限流查询用
 
 -- ── 下单即预占：原子取一张未售卡，建 pending 订单并锁定该卡 ──────
 -- 返回新订单 id；无库存返回 null（调用方据此报缺货）。库存随之 -1。

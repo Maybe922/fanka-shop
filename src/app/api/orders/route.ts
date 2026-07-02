@@ -9,6 +9,17 @@ export const runtime = "nodejs";
 // 每个买家同时最多挂这么多笔未支付订单。每笔会预占 1 张卡 20 分钟，
 // 上限挡住「狂下单不付款、把小库存占空」让真买家看到缺货的薅法。
 const MAX_PENDING_ORDERS = 3;
+// 同 IP 未付订单上限：挡「注册一堆小号、每号囤 3 张」的绕过（多账号共用出口 IP）。
+const MAX_PENDING_PER_IP = 6;
+// 单账号每小时下单总数（不论订单结局）：挡「下单→等 20 分钟过期→再来一轮」的循环占卡。
+const MAX_ORDERS_PER_HOUR = 10;
+
+// 取真实客户端 IP：Vercel/nginx 都会把它放进 x-forwarded-for 首位。
+function clientIp(req: Request): string | null {
+  const fwd = req.headers.get("x-forwarded-for");
+  if (fwd) return fwd.split(",")[0].trim() || null;
+  return req.headers.get("x-real-ip");
+}
 
 // POST /api/orders  { productId } → create an order + 虎皮椒 pay url
 export async function POST(req: Request) {
@@ -47,6 +58,37 @@ export async function POST(req: Request) {
     );
   }
 
+  // 同 IP 未付订单上限（跨账号）。ip 列未建时查询会报错 → 放行不拦，
+  // 宁可少一道闸也不能挡住真买家下单。
+  const ip = clientIp(req);
+  if (ip) {
+    const { count: ipPending, error: ipErr } = await supabase
+      .from("orders")
+      .select("id", { count: "exact", head: true })
+      .eq("ip", ip)
+      .eq("status", "pending");
+    if (!ipErr && (ipPending ?? 0) >= MAX_PENDING_PER_IP) {
+      return Response.json(
+        { error: "当前网络下单过于频繁，请稍后再试" },
+        { status: 429 },
+      );
+    }
+  }
+
+  // 单账号每小时下单频次（含已过期/已付），挡循环占卡。
+  const hourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const { count: hourlyCount } = await supabase
+    .from("orders")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", buyer.id)
+    .gte("created_at", hourAgo);
+  if ((hourlyCount ?? 0) >= MAX_ORDERS_PER_HOUR) {
+    return Response.json(
+      { error: "下单太频繁了，请一小时后再试" },
+      { status: 429 },
+    );
+  }
+
   const { data: product } = await supabase
     .from("products")
     .select("id, name, price_cents, is_active")
@@ -80,6 +122,11 @@ export async function POST(req: Request) {
   }
   if (!orderId) {
     return Response.json({ error: "该商品暂时缺货" }, { status: 409 });
+  }
+
+  // 记录下单 IP 供限流统计（列未建时静默忽略，不影响下单）。
+  if (ip) {
+    await supabase.from("orders").update({ ip }).eq("id", orderId);
   }
 
   const siteUrl = publicEnv.siteUrl || new URL(req.url).origin;

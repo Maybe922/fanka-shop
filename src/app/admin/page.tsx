@@ -101,18 +101,18 @@ export default async function AdminPage({
           revenueCents={paidStats.revenueCents}
         />
 
-        <section>
-          <NewProductForm />
-        </section>
-
+        {/* 「新增商品」归属本栏：标题在上，新增入口 + 商品列表都在其下 */}
         <section>
           <h2 className="mb-4 text-lg font-semibold tracking-tight">
             商品与卡密库存
           </h2>
+          <NewProductForm />
           {products.length === 0 ? (
-            <p className="text-sm text-muted">还没有商品，先用上方表单添加一个。</p>
+            <p className="mt-5 text-sm text-muted">
+              还没有商品，先用上方「新增商品」添加一个。
+            </p>
           ) : (
-            <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+            <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
               {products.map((p) => (
                 <AdminProductCard
                   key={p.id}
@@ -125,16 +125,16 @@ export default async function AdminPage({
         </section>
 
         <section id="articles">
-          <NewArticleForm />
-          <h2 className="mb-4 mt-8 text-lg font-semibold tracking-tight">
+          <h2 className="mb-4 text-lg font-semibold tracking-tight">
             教程文章
           </h2>
+          <NewArticleForm />
           {articles.length === 0 ? (
-            <p className="text-sm text-muted">
-              还没有文章，用上方表单写第一篇。发布后会出现在首页「相关教程说明」。
+            <p className="mt-5 text-sm text-muted">
+              还没有文章，用上方「新增教程」写第一篇。发布后会出现在首页「相关教程说明」。
             </p>
           ) : (
-            <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+            <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
               {articles.map((a) => (
                 <AdminArticleCard key={a.id} article={a} />
               ))}

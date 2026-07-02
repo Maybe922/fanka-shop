@@ -52,7 +52,12 @@ ADMIN_EMAILS=you@example.com
 NEXT_PUBLIC_TURNSTILE_SITE_KEY=
 TURNSTILE_SECRET_KEY=
 
-# 运营告警 webhook（「已付但缺货」时推送，支持 Server酱/PushPlus 等表单式地址）
+# Telegram 补货/缺货提醒（推荐）：售罄、已付缺货时机器人私聊你
+# ⚠️ 大陆机房 VPS 出站到 api.telegram.org 会被墙，先 curl 验证连通性
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_CHAT_ID=
+
+# 运营告警 webhook（可选，与 TG 并存；支持 Server酱/PushPlus 等表单式地址）
 ALERT_WEBHOOK_URL=
 ```
 

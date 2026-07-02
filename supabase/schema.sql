@@ -70,6 +70,7 @@ create table if not exists orders (
 -- 兼容已存在的表：补列、放宽 status 取值（幂等）。
 alter table products add column if not exists usage_notes text;
 alter table products add column if not exists image_url text;
+alter table products add column if not exists soldout_alerted_at timestamptz; -- 「售罄补货」提醒去重（进货时清空）
 alter table orders add column if not exists user_id uuid references auth.users(id) on delete set null;
 alter table orders add column if not exists email text;
 alter table orders add column if not exists pay_code text;

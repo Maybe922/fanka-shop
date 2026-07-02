@@ -167,6 +167,12 @@ export async function addCards(
   const { error } = await supabase.from("cards").insert(rows);
   if (error) return { ok: false, message: error.message };
 
+  // 补货后重新武装「售罄提醒」（列未建时忽略错误，不影响进货）。
+  await supabase
+    .from("products")
+    .update({ soldout_alerted_at: null })
+    .eq("id", parsed.data.productId);
+
   refreshAdmin();
   return { ok: true, message: `已进货 ${lines.length} 张卡密` };
 }

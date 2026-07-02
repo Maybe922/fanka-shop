@@ -1,7 +1,10 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { getBuyer } from "@/lib/supabase/auth-server";
 import { queryXunhuOrder } from "@/lib/xunhupay";
-import { notifyStockOutIfNeeded } from "@/lib/alert";
+import {
+  notifyStockOutIfNeeded,
+  notifyProductSoldOutIfNeeded,
+} from "@/lib/alert";
 import type { OrderStatusPayload } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -64,6 +67,10 @@ export async function GET(
         .eq("id", id)
         .single();
       if (refreshed) order = refreshed;
+      // 本次查单触发了发卡 → 若该商品因此售罄，推补货提醒（内部去重）。
+      if (order.status === "paid" && order.card_id) {
+        await notifyProductSoldOutIfNeeded(supabase, order.product_id);
+      }
     }
   }
 

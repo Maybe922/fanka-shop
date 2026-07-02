@@ -1,6 +1,9 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { verifyXunhuNotify } from "@/lib/xunhupay";
-import { notifyStockOutIfNeeded } from "@/lib/alert";
+import {
+  notifyStockOutIfNeeded,
+  notifyProductSoldOutIfNeeded,
+} from "@/lib/alert";
 
 export const runtime = "nodejs";
 
@@ -37,6 +40,16 @@ export async function POST(req: Request) {
         .single();
       if (o && o.status === "paid" && !o.card_id) {
         await notifyStockOutIfNeeded(supabase, o.id, o.trade_order_id);
+      }
+    } else {
+      // 发卡成功 → 若这是该商品最后一张卡，推「售罄补货」提醒（内部去重）。
+      const { data: o } = await supabase
+        .from("orders")
+        .select("product_id")
+        .eq("trade_order_id", params.trade_order_id)
+        .single();
+      if (o?.product_id) {
+        await notifyProductSoldOutIfNeeded(supabase, o.product_id);
       }
     }
   }

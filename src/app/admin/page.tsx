@@ -48,6 +48,8 @@ export default async function AdminPage({
   ]);
 
   const stockLeft = products.reduce((sum, p) => sum + p.stock, 0);
+  // 上架但售罄的商品——顶部横幅提醒补货（下架的不催）。
+  const soldOutActive = products.filter((p) => p.is_active && p.stock < 1);
 
   const cardsByProduct = new Map<string, AdminCard[]>();
   for (const c of cards) {
@@ -91,6 +93,21 @@ export default async function AdminPage({
             <Alert.Indicator />
             <Alert.Content>
               <Alert.Description>{error ?? ok}</Alert.Description>
+            </Alert.Content>
+          </Alert>
+        )}
+
+        {soldOutActive.length > 0 && (
+          <Alert status="warning">
+            <Alert.Indicator />
+            <Alert.Content>
+              <Alert.Title>
+                {soldOutActive.length} 个上架商品已售罄
+              </Alert.Title>
+              <Alert.Description>
+                {soldOutActive.map((p) => p.name).join("、")}
+                ——买家现在看到的是「暂时缺货」，记得在下方进货补卡。
+              </Alert.Description>
             </Alert.Content>
           </Alert>
         )}

@@ -83,7 +83,7 @@ export default async function Home() {
                 alt={site.name}
                 width={960}
                 height={960}
-                className="mx-auto aspect-square w-full max-w-sm rounded-3xl border border-border object-cover shadow-[0_30px_70px_-32px_rgba(15,23,42,0.4)] sm:max-w-md lg:max-w-none"
+                className="mx-auto aspect-square w-full max-w-sm rounded-3xl border border-border object-cover shadow-[0_30px_70px_-32px_rgba(30,20,10,0.4)] sm:max-w-md lg:max-w-none"
               />
             </div>
           </div>
@@ -223,7 +223,7 @@ function GuideCard({ article, index }: { article: ArticleCard; index: number }) 
       rel="noopener noreferrer"
       className="group block h-full"
     >
-      <Card className="flex h-full flex-col p-5 transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-[0_18px_40px_-22px_rgba(15,23,42,0.35)]">
+      <Card className="flex h-full flex-col p-5 transition-all duration-300 group-hover:-translate-y-1 group-hover:shadow-[0_18px_40px_-22px_rgba(30,20,10,0.35)]">
         <div className="flex items-center justify-between gap-3">
           <Chip size="sm" variant="secondary">
             {article.tag}

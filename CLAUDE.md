@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 极简自动发卡站：买家付款后**自动发卡密**。前台 `/` 选品下单，后台 `/admin` 进货卡密 + 收钱。
 栈：Next.js 16 + Supabase(Postgres) + 虎皮椒支付，部署到 Vercel。完整使用/部署说明见 `README.md`。
-UI：**HeroUI v3**（`@heroui/react`，React Aria + Tailwind v4）。主题变量在 `src/app/globals.css` 覆盖（明亮商店风、科技蓝主色 #0285F7）；组件已预编译带 `"use client"`，服务端页面可直接渲染，但事件回调只能在客户端组件传。给 next/link 套按钮样式用 `buttonVariants()`。
+UI：**HeroUI v3**（`@heroui/react`，React Aria + Tailwind v4）。主题变量在 `src/app/globals.css` 覆盖（明亮商店风；实心主按钮蓝 #0285F7，点缀色暖橙）；组件已预编译带 `"use client"`，服务端页面可直接渲染，但事件回调只能在客户端组件传。给 next/link 套按钮样式用 `buttonVariants()`。
 
 ## 常用命令
 

@@ -7,7 +7,7 @@ export function ProductCard({ product }: { product: PublicProduct }) {
   const soldOut = product.stock < 1;
 
   return (
-    <Card className="group relative flex flex-col overflow-hidden p-0 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_40px_-22px_rgba(15,23,42,0.35)]">
+    <Card className="group relative flex flex-col overflow-hidden p-0 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_40px_-22px_rgba(30,20,10,0.35)]">
       {/* 封面图（有才显示） */}
       {product.image_url && (
         <div className="overflow-hidden border-b border-separator bg-surface-secondary">

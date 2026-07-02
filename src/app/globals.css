@@ -3,7 +3,7 @@
 
 /* ──────────────────────────────────────────────────────────────
    双吉AI — 明亮商店主题（HeroUI 变量覆盖）
-   纯白纸面 · 科技蓝按钮 + 暖橙点缀 · 等宽密钥字
+   纯白纸面 · 单一赤陶橙主色 · 等宽密钥字
    ────────────────────────────────────────────────────────────── */
 @theme {
   /* 中文走系统字重（零加载、原生清晰）；拉丁/数字交给 Plex Mono。 */
@@ -21,12 +21,9 @@
   --background: oklch(0.988 0.002 85);
   --foreground: oklch(0.22 0.01 60);
 
-  /* 点缀色：暖橙红（¥ 符号 / 编号 / hover / 光晕，呼应汉堡 Logo） */
-  --accent: oklch(0.63 0.2 38);
+  /* 品牌主色：赤陶橙 #E74E10（按钮 / ¥ 符号 / 编号 / hover / 光晕） */
+  --accent: #e74e10;
   --accent-foreground: oklch(0.99 0 0);
-
-  /* 按钮主色：科技蓝（仅实心主按钮用蓝，见下方 .button--primary） */
-  --button-blue: #0285f7;
 
   --muted: oklch(0.52 0.015 60);
   --border: oklch(0.9 0.006 75);
@@ -38,14 +35,6 @@
   --field-border-width: 1px;
 
   --radius: 0.625rem;
-}
-
-/* 实心主按钮（立即购买/登录/保存等）统一用科技蓝，hover 略深 */
-.button--primary {
-  --button-bg: var(--button-blue);
-  --button-bg-hover: color-mix(in oklab, var(--button-blue) 88%, black 12%);
-  --button-bg-pressed: color-mix(in oklab, var(--button-blue) 80%, black 20%);
-  --button-fg: oklch(0.99 0 0);
 }
 
 html {

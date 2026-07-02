@@ -3,9 +3,9 @@ import { cookies } from "next/headers";
 import { publicEnv } from "@/lib/env";
 import type { User } from "@supabase/supabase-js";
 
-// Cookie 绑定的 Supabase 客户端 —— 用于「买家」会话（anon key + RLS）。
+// Cookie 绑定的 Supabase 客户端 —— 登录会话（anon key + RLS）。
 // 可在 server component / route handler / server action 中使用。
-// 注意：这套是买家登录态，和后台 admin（ADMIN_PASSWORD + 自定义 cookie）互不相干。
+// 买家与后台共用这一套登录态；后台权限只看邮箱是否在 ADMIN_EMAILS 白名单（lib/admin-auth.ts）。
 export async function createAuthClient() {
   const cookieStore = await cookies();
   return createServerClient(publicEnv.supabaseUrl, publicEnv.supabaseAnonKey, {

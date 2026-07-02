@@ -31,6 +31,12 @@
   --success-soft: #e3f7e8;
   --success-soft-foreground: #1e7a45;
 
+  /* 警告黄同款降噪：深琥珀文字 + 淡杏黄底（待支付/已下架/草稿等） */
+  --warning: #9a5b13;
+  --warning-foreground: oklch(0.99 0 0);
+  --warning-soft: #faf0d9;
+  --warning-soft-foreground: #9a5b13;
+
   --muted: oklch(0.52 0.015 60);
   --border: oklch(0.9 0.006 75);
   --separator: oklch(0.93 0.005 75);

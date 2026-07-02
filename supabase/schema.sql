@@ -12,6 +12,7 @@ create table if not exists products (
   name        text not null,
   description text,
   usage_notes text,                                      -- 使用教程/说明（订单页展示，后台编辑）
+  image_url   text,                                      -- 商品图片链接（前台卡片封面）
   price_cents integer not null check (price_cents >= 0), -- 价格（分）
   is_active   boolean not null default true,             -- 是否上架
   sort_order  integer not null default 0,
@@ -68,6 +69,7 @@ create table if not exists orders (
 
 -- 兼容已存在的表：补列、放宽 status 取值（幂等）。
 alter table products add column if not exists usage_notes text;
+alter table products add column if not exists image_url text;
 alter table orders add column if not exists user_id uuid references auth.users(id) on delete set null;
 alter table orders add column if not exists email text;
 alter table orders add column if not exists pay_code text;
@@ -237,11 +239,14 @@ $$;
 
 -- Public, safe view for the landing page (no secrets). Runs as owner so it
 -- can count cards without exposing the cards table to anon.
+-- ⚠️ image_url 必须排在 stock 之后：线上视图是按此列序建的，
+--    create or replace 只允许在末尾追加列，改中间顺序会报错。
 create or replace view public_products
 with (security_invoker = false) as
 select
   p.id, p.name, p.description, p.price_cents, p.sort_order,
-  (select count(*) from cards c where c.product_id = p.id and c.status = 'unsold') as stock
+  (select count(*) from cards c where c.product_id = p.id and c.status = 'unsold') as stock,
+  p.image_url
 from products p
 where p.is_active = true
 order by p.sort_order, p.created_at;

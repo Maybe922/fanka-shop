@@ -2,9 +2,9 @@
 
 极简自动发卡站。买家付款后**自动发卡密**，你只需在后台「进货卡密 + 收钱」。
 
-- **前台**（`/`）：极简商品列表 → 点购买 → 虎皮椒收银台付款 → 订单页自动显示卡密
-- **后台**（`/admin`）：密码登录 → 商品上下架/改价 → 进货卡密 → 查看订单
-- **栈**：Next.js 16（App Router）+ Supabase（Postgres）+ 虎皮椒支付，部署到 Vercel
+- **前台**（`/`）：极简商品列表 → 登录（邮箱验证码）→ 下单 → 微信扫码付款 → 订单页自动显示卡密
+- **后台**（`/admin`）：白名单邮箱登录 → 商品上下架/改价 → 进货卡密 → 查看订单
+- **栈**：Next.js 16（App Router）+ HeroUI v3 + Supabase（Postgres + Auth）+ 虎皮椒支付，部署到 Vercel
 
 ---
 
@@ -33,11 +33,27 @@ npm run dev                  # http://localhost:3000
 2. 自动发卡依赖虎皮椒的**异步回调**。回调地址为 `{你的域名}/api/notify`，付款后跳转地址为 `{你的域名}/order/{订单号}`——这两个由代码自动拼接，你只需保证 `NEXT_PUBLIC_SITE_URL` 配成线上公网域名。
 3. ⚠️ **签名算法**：不同虎皮椒/迅虎账号的接口与签名细节可能略有差异。若下单或回调报「签名错误」，对照你商户后台的 API 文档微调 [`src/lib/xunhupay.ts`](src/lib/xunhupay.ts)（签名、接口地址、`status` 取值都集中在这一个文件里）。
 
-## 4. 后台密码
+## 4. 登录与后台管理员
+
+买家和管理员用**同一套登录**：邮箱验证码（Supabase Auth OTP），无密码。
 
 ```bash
-ADMIN_PASSWORD=设一个强密码
-SESSION_SECRET=$(openssl rand -hex 32)   # 用于签名后台会话 cookie
+# 可进 /admin 的邮箱白名单（逗号分隔可多个）
+ADMIN_EMAILS=you@example.com
+```
+
+- 白名单邮箱用验证码登录后即拥有后台权限；其他邮箱登录只是普通买家。
+- 验证码邮件的 SMTP / 模板在 **Supabase 后台**（Authentication → Emails）配置，不在代码或环境变量里。Supabase 自带邮件服务有频率限制，正式运营建议接自己的 SMTP。
+
+可选配置（不填也能跑）：
+
+```bash
+# Cloudflare Turnstile 人机验证（拦在「获取验证码」之前，防机器人刷邮件）
+NEXT_PUBLIC_TURNSTILE_SITE_KEY=
+TURNSTILE_SECRET_KEY=
+
+# 运营告警 webhook（「已付但缺货」时推送，支持 Server酱/PushPlus 等表单式地址）
+ALERT_WEBHOOK_URL=
 ```
 
 ---
@@ -51,7 +67,7 @@ SESSION_SECRET=$(openssl rand -hex 32)   # 用于签名后台会话 cookie
 
 ## 6. 开张流程
 
-1. 访问 `/admin`，用 `ADMIN_PASSWORD` 登录。
+1. 访问 `/admin`，用 `ADMIN_EMAILS` 里的邮箱走验证码登录。
 2. 「新增商品」填名称、简介、价格。
 3. 在该商品卡片里「进货卡密」（每行一个），勾选「上架」保存。
 4. 回到前台 `/` 即可看到商品，下单测试。
@@ -63,16 +79,17 @@ SESSION_SECRET=$(openssl rand -hex 32)   # 用于签名后台会话 cookie
 
 | 表 | 作用 |
 |---|---|
-| `products` | 商品：名称 / 简介 / 价格(分) / 是否上架 |
-| `cards` | 卡密库存：所属商品 / 卡密内容 / 状态(未售·已售) |
-| `orders` | 订单：虎皮椒订单号 / 金额 / 状态 / 发出的卡密 |
+| `products` | 商品：名称 / 简介 / 图片 / 使用说明 / 价格(分) / 是否上架 |
+| `cards` | 卡密库存：所属商品 / 卡密内容 / 状态(未售·预占·已售) |
+| `orders` | 订单：虎皮椒订单号 / 金额 / 状态 / 买家 / 发出的卡密 |
+| `articles` | 首页「相关教程说明」卡片：标题 / 摘要 / 外链 / 是否发布 |
 
 发卡靠 Postgres 函数 `deliver_order()` 原子完成（`FOR UPDATE SKIP LOCKED` 防并发重复发卡，重复回调幂等）。
 
 ## 安全要点
 
 - `SUPABASE_SERVICE_ROLE_KEY`、`XUNHU_APPSECRET` 仅服务端使用，不会进入浏览器包。
-- 所有表开启 RLS；前台只能读 `public_products` 视图（无卡密字段）。
-- 后台所有写操作都校验登录态 + zod 入参校验。
-- 回调接口校验虎皮椒签名后才发卡。
-- 后台用 httpOnly cookie 会话，生产环境务必设强密码。
+- 所有表开启 RLS；匿名端只能读 `public_products` 视图（无卡密字段）。
+- 登录走 Supabase Auth 邮箱验证码（httpOnly cookie 会话）；后台权限 = 登录邮箱在 `ADMIN_EMAILS` 白名单内，每个页面与 server action 都会校验。
+- 订单有归属校验：卡密只有下单本人（登录态）能查看。
+- 回调接口校验虎皮椒签名后才发卡；同时有主动查单兜底，不依赖回调可达。

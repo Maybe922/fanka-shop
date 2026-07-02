@@ -7,7 +7,14 @@ export function ProductCard({ product }: { product: PublicProduct }) {
   const soldOut = product.stock < 1;
 
   return (
-    <Card className="group relative flex flex-col overflow-hidden p-0 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_40px_-22px_rgba(30,20,10,0.35)]">
+    // 缺货卡「半灰」：图片去饱和 + 整卡降透明度、不上浮——一眼可辨但不至于满页死灰。
+    <Card
+      className={`relative flex flex-col overflow-hidden p-0 ${
+        soldOut
+          ? "opacity-70"
+          : "group transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_40px_-22px_rgba(30,20,10,0.35)]"
+      }`}
+    >
       {/* 封面图（有才显示） */}
       {product.image_url && (
         <div className="overflow-hidden border-b border-separator bg-surface-secondary">
@@ -16,7 +23,11 @@ export function ProductCard({ product }: { product: PublicProduct }) {
             src={product.image_url}
             alt={product.name}
             loading="lazy"
-            className="aspect-[16/9] w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+            className={`aspect-[16/9] w-full object-cover ${
+              soldOut
+                ? "grayscale"
+                : "transition-transform duration-500 group-hover:scale-[1.03]"
+            }`}
           />
         </div>
       )}

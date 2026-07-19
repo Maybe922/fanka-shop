@@ -174,8 +174,7 @@ export function AdminProductCard({
               </Switch.Control>
               <Switch.Content>
                 <Label>
-                  联系客服购买（不走自动发卡：前台不置灰、按钮变「联系购买」跳
-                  Telegram）
+                  联系客服购买（不走自动发卡：前台不置灰、点「联系购买」弹微信二维码）
                 </Label>
               </Switch.Content>
             </Switch>

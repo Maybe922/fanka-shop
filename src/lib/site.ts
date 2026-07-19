@@ -10,5 +10,6 @@ export const site = {
     telegram: "@Ericttkx_229",
     telegramUrl: "https://t.me/Ericttkx_229",
     wechat: "Ericttkx_",
+    wechatQrUrl: "/wechat-qr.png", // 微信加好友二维码（public/ 下，客服定制商品弹窗用）
   },
 };

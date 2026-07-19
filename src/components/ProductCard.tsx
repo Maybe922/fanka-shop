@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Button, Card, Chip, buttonVariants } from "@heroui/react";
+import { ContactBuyButton } from "@/components/ContactBuyButton";
 import { Price } from "@/components/Price";
-import { site } from "@/lib/site";
 import type { PublicProduct } from "@/lib/types";
 
 export function ProductCard({ product }: { product: PublicProduct }) {
@@ -63,17 +63,7 @@ export function ProductCard({ product }: { product: PublicProduct }) {
           />
 
           {contactOnly ? (
-            <a
-              href={site.support.telegramUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={buttonVariants({ variant: "primary" })}
-            >
-              联系购买
-              <span className="cta-arrow font-mono" aria-hidden>
-                ↗
-              </span>
-            </a>
+            <ContactBuyButton />
           ) : soldOut ? (
             <Button isDisabled variant="tertiary">
               暂时缺货

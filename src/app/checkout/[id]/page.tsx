@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
-import { Alert, Button, Card, buttonVariants } from "@heroui/react";
-import { site } from "@/lib/site";
+import { Alert, Button, Card } from "@heroui/react";
+import { ContactBuyButton } from "@/components/ContactBuyButton";
 import { SiteHeader } from "@/components/SiteHeader";
 import { CheckoutOrderButton } from "@/components/CheckoutOrderButton";
 import { getBuyer } from "@/lib/supabase/auth-server";
@@ -126,21 +126,10 @@ export default async function CheckoutPage({
               </p>
             </div>
 
-            {/* 下单。客服定制商品不走在线支付，引导去 Telegram 联系。 */}
+            {/* 下单。客服定制商品不走在线支付，弹微信二维码联系。 */}
             <div className="mt-6">
               {product.contact_only ? (
-                <a
-                  href={site.support.telegramUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={buttonVariants({
-                    variant: "primary",
-                    fullWidth: true,
-                    size: "lg",
-                  })}
-                >
-                  联系客服购买 ↗
-                </a>
+                <ContactBuyButton fullWidth label="联系客服购买" />
               ) : soldOut ? (
                 <Button isDisabled variant="tertiary" fullWidth size="lg">
                   该商品暂时缺货

@@ -127,15 +127,16 @@ export function AdminArticleCard({ article }: { article: Article }) {
             <Label>摘要</Label>
             <TextArea rows={2} />
           </TextField>
+          {/* Switch.Content（SwitchButton）才是可点击区域，Control 必须放进去 */}
           <Switch
             name="isPublished"
             defaultSelected={article.is_published}
             className="col-span-2"
           >
-            <Switch.Control>
-              <Switch.Thumb />
-            </Switch.Control>
             <Switch.Content>
+              <Switch.Control>
+                <Switch.Thumb />
+              </Switch.Control>
               <Label>已发布（前台可见）</Label>
             </Switch.Content>
           </Switch>

@@ -152,15 +152,16 @@ export function AdminProductCard({
               <Label>排序</Label>
               <Input />
             </TextField>
+            {/* Switch.Content（SwitchButton）才是可点击区域，Control 必须放进去 */}
             <Switch
               name="isActive"
               defaultSelected={product.is_active}
               className="col-span-2"
             >
-              <Switch.Control>
-                <Switch.Thumb />
-              </Switch.Control>
               <Switch.Content>
+                <Switch.Control>
+                  <Switch.Thumb />
+                </Switch.Control>
                 <Label>上架（前台可见并可购买）</Label>
               </Switch.Content>
             </Switch>
@@ -169,10 +170,10 @@ export function AdminProductCard({
               defaultSelected={product.contact_only}
               className="col-span-2"
             >
-              <Switch.Control>
-                <Switch.Thumb />
-              </Switch.Control>
               <Switch.Content>
+                <Switch.Control>
+                  <Switch.Thumb />
+                </Switch.Control>
                 <Label>
                   联系客服购买（不走自动发卡：前台不置灰、点「联系购买」弹微信二维码）
                 </Label>

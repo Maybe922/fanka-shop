@@ -4,6 +4,7 @@ import {
   Disclosure,
   Input,
   Label,
+  Switch,
   TextArea,
   TextField,
 } from "@heroui/react";
@@ -57,6 +58,17 @@ export function NewProductForm() {
                   <Label>排序（小在前）</Label>
                   <Input />
                 </TextField>
+                <Switch name="contactOnly" className="sm:col-span-2">
+                  <Switch.Control>
+                    <Switch.Thumb />
+                  </Switch.Control>
+                  <Switch.Content>
+                    <Label>
+                      联系客服购买（不走自动发卡：前台不置灰、按钮变「联系购买」跳
+                      Telegram）
+                    </Label>
+                  </Switch.Content>
+                </Switch>
               </div>
               <Button type="submit" variant="primary" className="mt-5">
                 添加商品

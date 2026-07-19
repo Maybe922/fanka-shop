@@ -91,13 +91,21 @@ export async function POST(req: Request) {
 
   const { data: product } = await supabase
     .from("products")
-    .select("id, name, price_cents, is_active")
+    .select("id, name, price_cents, is_active, contact_only")
     .eq("id", productId)
     .eq("is_active", true)
     .single();
 
   if (!product) {
     return Response.json({ error: "商品不存在或已下架" }, { status: 404 });
+  }
+
+  // 客服定制商品不支持在线下单，防止付款后无卡可发。
+  if (product.contact_only) {
+    return Response.json(
+      { error: "该商品需联系客服购买，不支持在线下单" },
+      { status: 409 },
+    );
   }
 
   const tradeOrderId = `FK${Date.now()}${Math.random().toString(36).slice(2, 8)}`;

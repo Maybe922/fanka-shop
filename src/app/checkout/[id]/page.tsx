@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect, notFound } from "next/navigation";
-import { Alert, Button, Card } from "@heroui/react";
+import { Alert, Button, Card, buttonVariants } from "@heroui/react";
+import { site } from "@/lib/site";
 import { SiteHeader } from "@/components/SiteHeader";
 import { CheckoutOrderButton } from "@/components/CheckoutOrderButton";
 import { getBuyer } from "@/lib/supabase/auth-server";
@@ -27,7 +28,7 @@ export default async function CheckoutPage({
   const supabase = createServiceClient();
   const { data: product } = await supabase
     .from("products")
-    .select("id, name, description, price_cents, is_active")
+    .select("id, name, description, price_cents, is_active, contact_only")
     .eq("id", id)
     .single();
 
@@ -125,9 +126,22 @@ export default async function CheckoutPage({
               </p>
             </div>
 
-            {/* 下单 */}
+            {/* 下单。客服定制商品不走在线支付，引导去 Telegram 联系。 */}
             <div className="mt-6">
-              {soldOut ? (
+              {product.contact_only ? (
+                <a
+                  href={site.support.telegramUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={buttonVariants({
+                    variant: "primary",
+                    fullWidth: true,
+                    size: "lg",
+                  })}
+                >
+                  联系客服购买 ↗
+                </a>
+              ) : soldOut ? (
                 <Button isDisabled variant="tertiary" fullWidth size="lg">
                   该商品暂时缺货
                 </Button>

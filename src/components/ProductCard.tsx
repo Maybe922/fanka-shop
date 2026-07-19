@@ -1,10 +1,13 @@
 import Link from "next/link";
 import { Button, Card, Chip, buttonVariants } from "@heroui/react";
 import { Price } from "@/components/Price";
+import { site } from "@/lib/site";
 import type { PublicProduct } from "@/lib/types";
 
 export function ProductCard({ product }: { product: PublicProduct }) {
-  const soldOut = product.stock < 1;
+  // 客服定制商品不走库存逻辑：无卡密也不置灰，按钮换成「联系购买」。
+  const contactOnly = product.contact_only;
+  const soldOut = !contactOnly && product.stock < 1;
 
   return (
     // 缺货卡「半灰」：图片去饱和 + 整卡降透明度、不上浮——一眼可辨但不至于满页死灰。
@@ -37,7 +40,13 @@ export function ProductCard({ product }: { product: PublicProduct }) {
           <h3 className="min-w-0 text-[17px] font-semibold leading-snug tracking-tight">
             {product.name}
           </h3>
-          <StockChip stock={product.stock} />
+          {contactOnly ? (
+            <Chip size="sm" variant="soft" color="accent" className="shrink-0">
+              客服定制
+            </Chip>
+          ) : (
+            <StockChip stock={product.stock} />
+          )}
         </div>
 
         {product.description && (
@@ -53,7 +62,19 @@ export function ProductCard({ product }: { product: PublicProduct }) {
             symbolClassName="mr-0.5 text-[17px] text-accent"
           />
 
-          {soldOut ? (
+          {contactOnly ? (
+            <a
+              href={site.support.telegramUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={buttonVariants({ variant: "primary" })}
+            >
+              联系购买
+              <span className="cta-arrow font-mono" aria-hidden>
+                ↗
+              </span>
+            </a>
+          ) : soldOut ? (
             <Button isDisabled variant="tertiary">
               暂时缺货
             </Button>

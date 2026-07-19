@@ -9,6 +9,7 @@ export interface PublicProduct {
   sort_order: number;
   stock: number;
   image_url: string | null;
+  contact_only: boolean; // 联系客服购买（不走自动发卡，无库存也不置灰）
 }
 
 // Full product row + stock counts, used by the admin panel.
@@ -20,6 +21,7 @@ export interface ProductWithStock {
   image_url: string | null;
   price_cents: number;
   is_active: boolean;
+  contact_only: boolean;
   sort_order: number;
   created_at: string;
   stock: number;

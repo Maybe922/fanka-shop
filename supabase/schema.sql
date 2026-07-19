@@ -71,6 +71,7 @@ create table if not exists orders (
 alter table products add column if not exists usage_notes text;
 alter table products add column if not exists image_url text;
 alter table products add column if not exists soldout_alerted_at timestamptz; -- 「售罄补货」提醒去重（进货时清空）
+alter table products add column if not exists contact_only boolean not null default false; -- 联系客服购买（不走自动发卡，前台不置灰、显示联系按钮）
 alter table orders add column if not exists user_id uuid references auth.users(id) on delete set null;
 alter table orders add column if not exists email text;
 alter table orders add column if not exists pay_code text;
@@ -249,7 +250,8 @@ with (security_invoker = false) as
 select
   p.id, p.name, p.description, p.price_cents, p.sort_order,
   (select count(*) from cards c where c.product_id = p.id and c.status = 'unsold') as stock,
-  p.image_url
+  p.image_url,
+  p.contact_only
 from products p
 where p.is_active = true
 order by p.sort_order, p.created_at;

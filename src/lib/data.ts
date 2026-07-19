@@ -19,16 +19,18 @@ export async function getPublicProducts(): Promise<PublicProduct[]> {
     const supabase = createPublicClient();
     const { data, error } = await supabase
       .from("public_products")
-      .select("id, name, description, price_cents, sort_order, stock, image_url");
+      .select(
+        "id, name, description, price_cents, sort_order, stock, image_url, contact_only",
+      );
     if (error) {
       console.error("[getPublicProducts]", error.message);
       return [];
     }
-    // 有货的排前面，缺货沉底；同组内保持视图的 sort_order 顺序（稳定排序）。
+    // 可购的排前面（有货或客服定制），缺货沉底；同组内保持视图的 sort_order 顺序（稳定排序）。
     const products = (data ?? []) as PublicProduct[];
-    return products.sort(
-      (a, b) => (b.stock > 0 ? 1 : 0) - (a.stock > 0 ? 1 : 0),
-    );
+    const buyable = (p: PublicProduct): number =>
+      p.stock > 0 || p.contact_only ? 1 : 0;
+    return products.sort((a, b) => buyable(b) - buyable(a));
   } catch (err) {
     console.error("[getPublicProducts]", err);
     return [];

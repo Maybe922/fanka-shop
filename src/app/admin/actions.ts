@@ -37,6 +37,7 @@ const productSchema = z.object({
     .default(""),
   priceYuan: z.coerce.number().min(0, "价格不能为负"),
   sortOrder: z.coerce.number().int().default(0),
+  contactOnly: z.boolean().default(false),
 });
 
 export async function createProduct(formData: FormData): Promise<void> {
@@ -48,11 +49,12 @@ export async function createProduct(formData: FormData): Promise<void> {
     imageUrl: formData.get("imageUrl"),
     priceYuan: formData.get("priceYuan"),
     sortOrder: formData.get("sortOrder") || 0,
+    contactOnly: formData.get("contactOnly") === "on",
   });
   if (!parsed.success) {
     redirect("/admin?error=" + encodeURIComponent(parsed.error.issues[0].message));
   }
-  const { name, description, usageNotes, imageUrl, priceYuan, sortOrder } =
+  const { name, description, usageNotes, imageUrl, priceYuan, sortOrder, contactOnly } =
     parsed.data;
 
   const supabase = createServiceClient();
@@ -63,6 +65,7 @@ export async function createProduct(formData: FormData): Promise<void> {
     image_url: imageUrl || null,
     price_cents: yuanToCents(priceYuan),
     sort_order: sortOrder,
+    contact_only: contactOnly,
   });
   if (error) redirect("/admin?error=" + encodeURIComponent(error.message));
 
@@ -86,12 +89,22 @@ export async function updateProduct(formData: FormData): Promise<void> {
     priceYuan: formData.get("priceYuan"),
     sortOrder: formData.get("sortOrder") || 0,
     isActive: formData.get("isActive") === "on",
+    contactOnly: formData.get("contactOnly") === "on",
   });
   if (!parsed.success) {
     redirect("/admin?error=" + encodeURIComponent(parsed.error.issues[0].message));
   }
-  const { id, name, description, usageNotes, imageUrl, priceYuan, sortOrder, isActive } =
-    parsed.data;
+  const {
+    id,
+    name,
+    description,
+    usageNotes,
+    imageUrl,
+    priceYuan,
+    sortOrder,
+    isActive,
+    contactOnly,
+  } = parsed.data;
 
   const supabase = createServiceClient();
   const { error } = await supabase
@@ -104,6 +117,7 @@ export async function updateProduct(formData: FormData): Promise<void> {
       price_cents: yuanToCents(priceYuan),
       sort_order: sortOrder,
       is_active: isActive,
+      contact_only: contactOnly,
     })
     .eq("id", id);
   if (error) redirect("/admin?error=" + encodeURIComponent(error.message));

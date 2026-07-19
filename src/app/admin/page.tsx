@@ -48,8 +48,10 @@ export default async function AdminPage({
   ]);
 
   const stockLeft = products.reduce((sum, p) => sum + p.stock, 0);
-  // 上架但售罄的商品——顶部横幅提醒补货（下架的不催）。
-  const soldOutActive = products.filter((p) => p.is_active && p.stock < 1);
+  // 上架但售罄的商品——顶部横幅提醒补货（下架的不催；客服定制无库存概念，也不催）。
+  const soldOutActive = products.filter(
+    (p) => p.is_active && !p.contact_only && p.stock < 1,
+  );
 
   const cardsByProduct = new Map<string, AdminCard[]>();
   for (const c of cards) {

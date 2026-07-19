@@ -68,6 +68,9 @@ export function AdminProductCard({
               ) : (
                 <span className="text-warning">已下架</span>
               )}
+              {product.contact_only && (
+                <span className="text-accent"> · 客服定制</span>
+              )}
             </span>
           </span>
         </button>
@@ -159,6 +162,21 @@ export function AdminProductCard({
               </Switch.Control>
               <Switch.Content>
                 <Label>上架（前台可见并可购买）</Label>
+              </Switch.Content>
+            </Switch>
+            <Switch
+              name="contactOnly"
+              defaultSelected={product.contact_only}
+              className="col-span-2"
+            >
+              <Switch.Control>
+                <Switch.Thumb />
+              </Switch.Control>
+              <Switch.Content>
+                <Label>
+                  联系客服购买（不走自动发卡：前台不置灰、按钮变「联系购买」跳
+                  Telegram）
+                </Label>
               </Switch.Content>
             </Switch>
             <Button type="submit" variant="primary" className="col-span-2">

@@ -1,9 +1,12 @@
 import type { createServiceClient } from "@/lib/supabase/server";
+import { sendFeishuAlert } from "@/lib/feishu";
 
 // 运营告警：把要命的事件（「已付但缺货」「商品售罄」）推到你真会看的地方。
-// 两个通道，配了哪个走哪个（都配则都发）：
-//   1) Telegram 机器人：TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID
-//   2) 表单式 webhook（Server酱/PushPlus 等）：ALERT_WEBHOOK_URL
+// 三个通道，配了哪个走哪个（都配则都发）：
+//   1) 飞书自定义机器人：FEISHU_WEBHOOK_URL（+ 可选 FEISHU_WEBHOOK_SECRET）
+//   2) Telegram 机器人：TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID
+//   3) 表单式 webhook（Server酱/PushPlus 等）：ALERT_WEBHOOK_URL
+// 大陆机房只有 (1) 和 (3) 打得通，(2) 出站会被墙 —— 见 sendTelegram 里的说明。
 // 仅服务端调用。
 
 type ServiceClient = ReturnType<typeof createServiceClient>;
@@ -52,7 +55,11 @@ async function sendWebhook(title: string, text: string): Promise<void> {
 /** 推一条告警到所有已配置的通道。失败不抛错——告警本身不能拖垮发卡链路。 */
 export async function sendAlert(title: string, text: string): Promise<void> {
   console.error(`[ALERT] ${title} — ${text}`);
-  await Promise.all([sendTelegram(title, text), sendWebhook(title, text)]);
+  await Promise.all([
+    sendFeishuAlert(title, text),
+    sendTelegram(title, text),
+    sendWebhook(title, text),
+  ]);
 }
 
 function stockOutText(orderRef: string): string {

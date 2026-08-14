@@ -6,6 +6,7 @@ import { z } from "zod";
 import { isAdminEmail } from "@/lib/admin-auth";
 import { getBuyer } from "@/lib/supabase/auth-server";
 import { createServiceClient } from "@/lib/supabase/server";
+import { addUniqueCards } from "@/lib/card-stock";
 import { yuanToCents } from "@/lib/money";
 
 // 后台写操作守卫：未登录跳登录页，已登录但非管理员跳首页。
@@ -174,12 +175,15 @@ export async function addCards(
   if (lines.length === 0) return { ok: false, message: "没有有效的卡密" };
 
   const supabase = createServiceClient();
-  const rows = lines.map((secret) => ({
-    product_id: parsed.data.productId,
-    secret,
-  }));
-  const { error } = await supabase.from("cards").insert(rows);
-  if (error) return { ok: false, message: error.message };
+  let result;
+  try {
+    result = await addUniqueCards(supabase, parsed.data.productId, lines);
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : "卡密入库失败",
+    };
+  }
 
   // 补货后重新武装「售罄提醒」（列未建时忽略错误，不影响进货）。
   await supabase
@@ -188,7 +192,13 @@ export async function addCards(
     .eq("id", parsed.data.productId);
 
   refreshAdmin();
-  return { ok: true, message: `已进货 ${lines.length} 张卡密` };
+  return {
+    ok: true,
+    message:
+      result.skipped > 0
+        ? `已进货 ${result.added} 张，跳过 ${result.skipped} 张历史重复卡密`
+        : `已进货 ${result.added} 张卡密`,
+  };
 }
 
 // ── Card management（单张卡密：改内容 / 删除）────────────────────

@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@heroui/react";
 
 // 结账确认页的「立即下单」按钮：调 /api/orders 创建订单并跳转自建收银台。
 export function CheckoutOrderButton({ productId }: { productId: string }) {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -21,14 +23,14 @@ export function CheckoutOrderButton({ productId }: { productId: string }) {
       if (!res.ok) {
         // 会话过期 → 引导重新登录
         if (res.status === 401) {
-          window.location.href = `/login?next=/checkout/${productId}`;
+          router.push(`/login?next=/checkout/${productId}`);
           return;
         }
         setError(data.error ?? "下单失败，请重试");
         setLoading(false);
         return;
       }
-      window.location.href = `/order/${data.orderId}/pay`;
+      router.push(`/order/${data.orderId}/pay`);
     } catch {
       setError("网络错误，请重试");
       setLoading(false);

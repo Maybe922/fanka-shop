@@ -1,9 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { Button } from "@heroui/react";
 
 type Theme = "light" | "dark";
+
+function subscribeTheme(onStoreChange: () => void): () => void {
+  window.addEventListener("themechange", onStoreChange);
+  return () => window.removeEventListener("themechange", onStoreChange);
+}
+
+function currentTheme(): Theme {
+  return document.documentElement.classList.contains("dark") ? "dark" : "light";
+}
 
 function SunIcon() {
   return (
@@ -37,14 +46,13 @@ function MoonIcon() {
  * 选择持久化到 localStorage（首屏由 layout 里的内联脚本无闪烁恢复）。
  */
 export function ThemeToggle() {
-  // 挂载前不知道真实主题（SSR 恒为 light），先渲染占位避免水合不一致。
-  const [theme, setTheme] = useState<Theme | null>(null);
-
-  useEffect(() => {
-    setTheme(
-      document.documentElement.classList.contains("dark") ? "dark" : "light",
-    );
-  }, []);
+  // <html> 是主题状态的真源；useSyncExternalStore 同时提供稳定的 SSR 快照，
+  // 避免在 Effect 中同步 setState 造成额外渲染和 lint 错误。
+  const theme = useSyncExternalStore<Theme | null>(
+    subscribeTheme,
+    currentTheme,
+    () => null,
+  );
 
   function toggle() {
     const next: Theme = theme === "dark" ? "light" : "dark";
@@ -57,7 +65,7 @@ export function ThemeToggle() {
     } catch {
       // 隐私模式等场景写不进去——切换仍生效，只是不记忆
     }
-    setTheme(next);
+    window.dispatchEvent(new Event("themechange"));
   }
 
   return (

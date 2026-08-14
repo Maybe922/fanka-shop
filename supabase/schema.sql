@@ -67,6 +67,19 @@ create table if not exists orders (
   created_at     timestamptz not null default now()
 );
 
+-- 机器人事件幂等记录：飞书/Telegram 可能重复推送同一条消息。
+create table if not exists bot_events (
+  provider   text not null check (provider in ('feishu','telegram')),
+  message_id text not null,
+  event_id   text,
+  status     text not null default 'processing'
+             check (status in ('processing','completed','failed')),
+  last_error text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  primary key (provider, message_id)
+);
+
 -- 兼容已存在的表：补列、放宽 status 取值（幂等）。
 alter table products add column if not exists usage_notes text;
 alter table products add column if not exists image_url text;
@@ -89,6 +102,46 @@ create index if not exists idx_articles_published on articles (is_published, sor
 create index if not exists idx_orders_created on orders (created_at desc);
 create index if not exists idx_orders_user on orders (user_id, created_at desc);
 create index if not exists idx_orders_ip_pending on orders (ip) where status = 'pending'; -- 限流查询用
+create index if not exists idx_bot_events_created on bot_events (created_at);
+
+-- ── 原子补货：同商品历史上出现过的卡密永不重复导入 ────────────────
+-- 线上可能已有重复的已售历史记录，不能直接补普通 UNIQUE 约束；按商品加事务级
+-- advisory lock 后执行 NOT EXISTS，可在不破坏历史订单的前提下阻止未来重复。
+create or replace function add_cards_unique(
+  p_product_id uuid,
+  p_secrets    text[]
+)
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_count integer;
+begin
+  perform pg_advisory_xact_lock(hashtextextended(p_product_id::text, 0));
+
+  with cleaned as (
+    select distinct btrim(secret) as secret
+    from unnest(p_secrets) as input(secret)
+    where btrim(secret) <> ''
+  ), inserted as (
+    insert into cards (product_id, secret)
+    select p_product_id, cleaned.secret
+    from cleaned
+    where not exists (
+      select 1
+      from cards existing
+      where existing.product_id = p_product_id
+        and existing.secret = cleaned.secret
+    )
+    returning 1
+  )
+  select count(*) into v_count from inserted;
+
+  return v_count;
+end;
+$$;
 
 -- ── 下单即预占：原子取一张未售卡，建 pending 订单并锁定该卡 ──────
 -- 返回新订单 id；无库存返回 null（调用方据此报缺货）。库存随之 -1。
@@ -275,12 +328,25 @@ alter table products enable row level security;
 alter table cards    enable row level security;
 alter table orders   enable row level security;
 alter table articles enable row level security; -- 文章读写全走 service_role（服务端渲染/后台）
+alter table bot_events enable row level security;
 
 -- (no anon policies on cards/orders — they stay private)
 
--- Expose only the safe public view + delivery function to anon.
+-- 匿名端只开放不含卡密的商品视图；所有 SECURITY DEFINER 函数仅服务端可调。
 grant select on public_products to anon, authenticated;
+-- SECURITY DEFINER 函数默认可能允许 PUBLIC 执行；显式收紧为仅 service_role，
+-- 防止匿名调用取消订单、发卡或批量写库存。
+revoke execute on function create_order_reserved(uuid, text, integer, uuid, text, timestamptz) from public, anon, authenticated;
+revoke execute on function cancel_order(uuid) from public, anon, authenticated;
+revoke execute on function expire_stale_orders() from public, anon, authenticated;
+revoke execute on function deliver_order(text) from public, anon, authenticated;
+revoke execute on function add_cards_unique(uuid, text[]) from public, anon, authenticated;
+
+grant execute on function create_order_reserved(uuid, text, integer, uuid, text, timestamptz) to service_role;
+grant execute on function cancel_order(uuid) to service_role;
+grant execute on function expire_stale_orders() to service_role;
 grant execute on function deliver_order(text) to service_role;
+grant execute on function add_cards_unique(uuid, text[]) to service_role;
 
 -- ── service_role 授权 ────────────────────────────────────────────
 -- 服务端（后台/下单/回调）全程用 service_role 读写 cards/orders/products，

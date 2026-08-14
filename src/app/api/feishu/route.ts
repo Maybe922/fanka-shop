@@ -140,6 +140,12 @@ export async function POST(req: Request) {
   const msg = body.event?.message;
   const ownerChatId = process.env.FEISHU_CHAT_ID;
 
+  // 首次接入时需要从真实事件里取得 chat_id，再写入白名单。
+  // 只在尚未配置白名单时记录会话标识，不记录消息正文或发送人。
+  if (!ownerChatId && msg?.chat_id) {
+    console.info("[feishu] 待绑定会话", { chatId: msg.chat_id });
+  }
+
   // ③ 只认白名单会话里的纯文本消息
   if (
     !msg?.chat_id ||

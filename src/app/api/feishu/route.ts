@@ -67,8 +67,20 @@ export async function POST(req: Request) {
   try {
     body = JSON.parse(rawBody) as FeishuEvent;
   } catch {
+    console.error("[feishu] 回调请求不是合法 JSON", {
+      contentType: req.headers.get("content-type"),
+      bodyLength: rawBody.length,
+    });
     return new Response("bad request", { status: 400 });
   }
+
+  // 仅记录排障所需的结构信息；绝不记录 token、消息正文或卡密。
+  console.info("[feishu] 收到回调", {
+    type: body.type ?? null,
+    eventType: body.header?.event_type ?? null,
+    encrypted: typeof body.encrypt === "string",
+    hasChallenge: typeof body.challenge === "string",
+  });
 
   // 开了 Encrypt Key 的话，整个包体就是 {"encrypt":"..."}，解开才是真事件。
   if (typeof body.encrypt === "string") {
@@ -89,6 +101,10 @@ export async function POST(req: Request) {
 
   // ① URL 验证握手：配置「请求地址」时飞书先打这一发，要在 1 秒内原样回 challenge。
   if (body.type === "url_verification") {
+    console.info("[feishu] URL 验证", {
+      tokenMatched: body.token === verificationToken,
+      hasChallenge: typeof body.challenge === "string",
+    });
     if (body.token !== verificationToken) {
       return new Response("forbidden", { status: 403 });
     }

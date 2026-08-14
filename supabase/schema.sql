@@ -80,6 +80,19 @@ create table if not exists bot_events (
   primary key (provider, message_id)
 );
 
+-- 商品改价审计：飞书远程改价必须与实际更新在同一事务内留下旧值、新值和消息来源。
+create table if not exists product_price_audit (
+  id              uuid primary key default gen_random_uuid(),
+  product_id      uuid not null references products(id) on delete restrict,
+  old_price_cents integer not null check (old_price_cents >= 0),
+  new_price_cents integer not null check (new_price_cents >= 0),
+  source          text not null default 'feishu' check (source in ('feishu', 'admin')),
+  actor_ref       text not null,
+  message_id      text not null,
+  created_at      timestamptz not null default now(),
+  unique (source, message_id)
+);
+
 -- 兼容已存在的表：补列、放宽 status 取值（幂等）。
 alter table products add column if not exists usage_notes text;
 alter table products add column if not exists image_url text;
@@ -103,6 +116,8 @@ create index if not exists idx_orders_created on orders (created_at desc);
 create index if not exists idx_orders_user on orders (user_id, created_at desc);
 create index if not exists idx_orders_ip_pending on orders (ip) where status = 'pending'; -- 限流查询用
 create index if not exists idx_bot_events_created on bot_events (created_at);
+create index if not exists idx_product_price_audit_product_created
+  on product_price_audit (product_id, created_at desc);
 
 -- ── 原子补货：同商品历史上出现过的卡密永不重复导入 ────────────────
 -- 线上可能已有重复的已售历史记录，不能直接补普通 UNIQUE 约束；按商品加事务级
@@ -140,6 +155,63 @@ begin
   select count(*) into v_count from inserted;
 
   return v_count;
+end;
+$$;
+
+-- ── 飞书远程改价：商品更新与审计同一事务完成 ────────────────────
+create or replace function update_product_price_from_bot(
+  p_product_id      uuid,
+  p_new_price_cents integer,
+  p_message_id      text,
+  p_actor_ref       text
+)
+returns table (
+  product_name     text,
+  old_price_cents  integer,
+  new_price_cents  integer
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_name      text;
+  v_old_price integer;
+begin
+  if p_new_price_cents < 0 or p_new_price_cents > 10000000 then
+    raise exception 'price out of range';
+  end if;
+  if btrim(coalesce(p_message_id, '')) = '' or btrim(coalesce(p_actor_ref, '')) = '' then
+    raise exception 'audit context required';
+  end if;
+
+  perform pg_advisory_xact_lock(hashtextextended(p_product_id::text, 1));
+
+  select name, price_cents into v_name, v_old_price
+  from products
+  where id = p_product_id
+  for update;
+
+  if not found then
+    raise exception 'product not found';
+  end if;
+
+  if v_old_price <> p_new_price_cents then
+    update products
+    set price_cents = p_new_price_cents
+    where id = p_product_id;
+
+    insert into product_price_audit (
+      product_id, old_price_cents, new_price_cents,
+      source, actor_ref, message_id
+    ) values (
+      p_product_id, v_old_price, p_new_price_cents,
+      'feishu', p_actor_ref, p_message_id
+    );
+  end if;
+
+  return query
+  select v_name, v_old_price, p_new_price_cents;
 end;
 $$;
 
@@ -329,6 +401,7 @@ alter table cards    enable row level security;
 alter table orders   enable row level security;
 alter table articles enable row level security; -- 文章读写全走 service_role（服务端渲染/后台）
 alter table bot_events enable row level security;
+alter table product_price_audit enable row level security;
 
 -- (no anon policies on cards/orders — they stay private)
 
@@ -341,12 +414,14 @@ revoke execute on function cancel_order(uuid) from public, anon, authenticated;
 revoke execute on function expire_stale_orders() from public, anon, authenticated;
 revoke execute on function deliver_order(text) from public, anon, authenticated;
 revoke execute on function add_cards_unique(uuid, text[]) from public, anon, authenticated;
+revoke execute on function update_product_price_from_bot(uuid, integer, text, text) from public, anon, authenticated;
 
 grant execute on function create_order_reserved(uuid, text, integer, uuid, text, timestamptz) to service_role;
 grant execute on function cancel_order(uuid) to service_role;
 grant execute on function expire_stale_orders() to service_role;
 grant execute on function deliver_order(text) to service_role;
 grant execute on function add_cards_unique(uuid, text[]) to service_role;
+grant execute on function update_product_price_from_bot(uuid, integer, text, text) to service_role;
 
 -- ── service_role 授权 ────────────────────────────────────────────
 -- 服务端（后台/下单/回调）全程用 service_role 读写 cards/orders/products，

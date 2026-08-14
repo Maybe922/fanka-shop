@@ -1,5 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { addUniqueCards } from "@/lib/card-stock";
+import { formatCny } from "@/lib/money";
+import { parsePriceCommandArgs } from "@/lib/price-command";
 import type { createServiceClient } from "@/lib/supabase/server";
 
 // 机器人补货命令的共享实现 —— Telegram（api/telegram）与飞书（api/feishu）
@@ -25,21 +27,50 @@ export const HELP_TEXT = [
   "DDDD-EEEE-FFFF",
 ].join("\n");
 
+export const PRICE_HELP_TEXT =
+  "/price 序号或商品名 新价格 — 修改售价，例如 /price 1 19.9";
+
 // 商品排序与 /list 的编号必须一致（sort_order → created_at），/add 按序号找的
 // 就是这份列表里的第 N 个。
 async function listProducts(supabase: ServiceClient) {
   const { data, error } = await supabase
     .from("product_stock")
-    .select("id, name, stock, is_active")
+    .select("id, name, price_cents, stock, is_active")
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: true });
   if (error) throw new Error(error.message);
   return (data ?? []) as {
     id: string;
     name: string;
+    price_cents: number;
     stock: number;
     is_active: boolean;
   }[];
+}
+
+function resolveProduct(
+  products: Awaited<ReturnType<typeof listProducts>>,
+  target: string,
+): { product?: (typeof products)[number]; error?: string } {
+  if (/^\d+$/.test(target)) {
+    const product = products[Number(target) - 1];
+    return product
+      ? { product }
+      : { error: `没有第 ${target} 号商品，发 /list 查看当前编号。` };
+  }
+
+  const exact = products.filter((p) => p.name === target);
+  const fuzzy =
+    exact.length > 0 ? exact : products.filter((p) => p.name.includes(target));
+  if (fuzzy.length === 0) {
+    return { error: `找不到商品「${target}」，发 /list 查看列表。` };
+  }
+  if (fuzzy.length > 1) {
+    return {
+      error: `「${target}」匹配到多个商品：${fuzzy.map((p) => p.name).join("、")}。请用 /list 里的序号指定。`,
+    };
+  }
+  return { product: fuzzy[0] };
 }
 
 export async function handleList(supabase: ServiceClient): Promise<string> {
@@ -48,7 +79,7 @@ export async function handleList(supabase: ServiceClient): Promise<string> {
   const lines = products.map((p, i) => {
     const state = p.is_active ? "" : "（已下架）";
     const stock = p.stock > 0 ? `库存 ${p.stock}` : "⚠️ 缺货";
-    return `${i + 1}. ${p.name} — ${stock}${state}`;
+    return `${i + 1}. ${p.name} — ${formatCny(p.price_cents)} · ${stock}${state}`;
   });
   return [...lines, "", "补货：/add 序号，换行后粘贴卡密（每行一张）"].join("\n");
 }
@@ -88,30 +119,11 @@ export async function handleAdd(
 
   // 找商品：纯数字按 /list 序号，否则先精确后模糊匹配名称；歧义时拒绝并列出候选。
   const products = await listProducts(supabase);
-  let product: (typeof products)[number] | undefined;
-  if (/^\d+$/.test(target)) {
-    product = products[Number(target) - 1];
-    if (!product) {
-      return {
-        text: `没有第 ${target} 号商品，发 /list 查看当前编号。`,
-        added: false,
-      };
-    }
-  } else {
-    const exact = products.filter((p) => p.name === target);
-    const fuzzy =
-      exact.length > 0 ? exact : products.filter((p) => p.name.includes(target));
-    if (fuzzy.length === 0) {
-      return { text: `找不到商品「${target}」，发 /list 查看列表。`, added: false };
-    }
-    if (fuzzy.length > 1) {
-      return {
-        text: `「${target}」匹配到多个商品：${fuzzy.map((p) => p.name).join("、")}。请用 /list 里的序号指定。`,
-        added: false,
-      };
-    }
-    product = fuzzy[0];
+  const resolved = resolveProduct(products, target);
+  if (!resolved.product) {
+    return { text: resolved.error ?? "找不到商品。", added: false };
   }
+  const product = resolved.product;
 
   let result;
   try {
@@ -144,6 +156,45 @@ export async function handleAdd(
     // 即使全部都是重复卡密，也要撤回/删除包含卡密原文的聊天消息。
     added: true,
   };
+}
+
+export async function handlePrice(
+  supabase: ServiceClient,
+  input: string,
+  audit: { messageId: string; actorRef: string },
+): Promise<string> {
+  const parsed = parsePriceCommandArgs(input);
+  if (!parsed.ok) return parsed.error;
+
+  const products = await listProducts(supabase);
+  const resolved = resolveProduct(products, parsed.productTarget);
+  if (!resolved.product) return resolved.error ?? "找不到商品。";
+  const product = resolved.product;
+
+  if (product.price_cents === parsed.newPriceCents) {
+    return `「${product.name}」当前已经是 ${formatCny(product.price_cents)}，未做修改。`;
+  }
+
+  const { data, error } = await supabase.rpc("update_product_price_from_bot", {
+    p_product_id: product.id,
+    p_new_price_cents: parsed.newPriceCents,
+    p_message_id: audit.messageId,
+    p_actor_ref: audit.actorRef,
+  });
+  if (error) {
+    console.error("[restock] 机器人改价失败", error.message);
+    return "❌ 改价失败，请稍后重试或到后台修改。";
+  }
+
+  const row = Array.isArray(data) ? data[0] : data;
+  const oldPrice = Number(row?.old_price_cents ?? product.price_cents);
+  const newPrice = Number(row?.new_price_cents ?? parsed.newPriceCents);
+
+  revalidatePath("/");
+  revalidatePath("/admin");
+  revalidatePath(`/checkout/${product.id}`);
+
+  return `✅ 「${product.name}」价格已从 ${formatCny(oldPrice)} 修改为 ${formatCny(newPrice)}。`;
 }
 
 /**

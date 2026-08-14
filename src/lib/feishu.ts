@@ -6,7 +6,7 @@ import crypto from "node:crypto";
 //      群设置里「添加机器人 → 自定义机器人」拿到的地址，无需建应用。
 //      纯出站请求，大陆 VPS 也能用（不像 api.telegram.org 会被墙）。
 //
-//   2) 自建应用（FEISHU_APP_ID/SECRET）—— 用于收命令、回消息、撤回消息。
+//   2) 自建应用（FEISHU_APP_ID/SECRET）—— 用于订单通知、收命令、回消息、撤回消息。
 //      需要在开放平台建应用并订阅 im.message.receive_v1 事件。
 //
 // 告警走 (1) 而不是 (2)，是刻意的：告警链路不该依赖 token 刷新能不能成功。
@@ -14,6 +14,40 @@ import crypto from "node:crypto";
 
 const FEISHU_BASE = process.env.FEISHU_BASE_URL ?? "https://open.feishu.cn";
 const TIMEOUT_MS = 5000;
+
+export type OrderCreatedMessageInput = {
+  tradeOrderId: string;
+  productName: string;
+  email: string | null;
+  amountCents: number;
+  createdAt: Date | string;
+};
+
+export function formatOrderCreatedMessage(input: OrderCreatedMessageInput): string {
+  const createdAt = new Date(input.createdAt);
+  const time = new Intl.DateTimeFormat("zh-CN", {
+    timeZone: "Asia/Taipei",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  })
+    .format(createdAt)
+    .replaceAll("/", "-");
+  const amount = `¥${(input.amountCents / 100).toFixed(2)}`;
+
+  return [
+    "🛒 新订单（待支付）",
+    `商品：${input.productName}`,
+    `客户邮箱：${input.email ?? "未提供"}`,
+    `订单金额：${amount}`,
+    `下单时间：${time}`,
+    `订单号：${input.tradeOrderId}`,
+  ].join("\n");
+}
 
 // ── (1) 自定义机器人：告警推送 ────────────────────────────────────
 
@@ -167,6 +201,19 @@ export async function sendFeishuMessage(
   );
   if (!ok) console.error("[feishu] 发送消息失败", code);
   return ok;
+}
+
+/** 新订单进入支付页后，主动通知已绑定的运营群。 */
+export async function sendFeishuOrderCreated(
+  order: OrderCreatedMessageInput,
+): Promise<boolean> {
+  const chatId = process.env.FEISHU_CHAT_ID;
+  if (!chatId || !hasFeishuApp()) return false;
+  return sendFeishuMessage(
+    chatId,
+    formatOrderCreatedMessage(order),
+    `order-created:${order.tradeOrderId}`,
+  );
 }
 
 /**

@@ -8,10 +8,19 @@ import {
   sendFeishuMessage,
   verifyFeishuEventSignature,
 } from "@/lib/feishu";
-import { HELP_TEXT, handleAdd, handleList, parseCommand } from "@/lib/restock";
+import {
+  HELP_TEXT,
+  PRICE_HELP_TEXT,
+  handleAdd,
+  handleList,
+  handlePrice,
+  parseCommand,
+} from "@/lib/restock";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
+
+const FEISHU_HELP_TEXT = `${HELP_TEXT}\n${PRICE_HELP_TEXT}`;
 
 // POST /api/feishu — 飞书事件订阅回调：老板在飞书里远程补货。
 // 命令实现见 lib/restock.ts（与 Telegram 机器人共用）。
@@ -192,12 +201,16 @@ async function processMessage(task: {
     switch (command) {
       case "/start":
       case "/help":
-        await sendFeishuMessage(task.chatId, HELP_TEXT, `${task.messageId}:help`);
+        await sendFeishuMessage(
+          task.chatId,
+          FEISHU_HELP_TEXT,
+          `${task.messageId}:help`,
+        );
         break;
       case "/list":
         await sendFeishuMessage(
           task.chatId,
-          await handleList(supabase),
+          `${await handleList(supabase)}\n改价：${PRICE_HELP_TEXT}`,
           `${task.messageId}:list`,
         );
         break;
@@ -219,10 +232,20 @@ async function processMessage(task: {
         );
         break;
       }
+      case "/price":
+        await sendFeishuMessage(
+          task.chatId,
+          await handlePrice(supabase, target, {
+            messageId: task.messageId,
+            actorRef: task.chatId,
+          }),
+          `${task.messageId}:price`,
+        );
+        break;
       default:
         await sendFeishuMessage(
           task.chatId,
-          `不认识的命令：${command}\n\n${HELP_TEXT}`,
+          `不认识的命令：${command}\n\n${FEISHU_HELP_TEXT}`,
           `${task.messageId}:unknown`,
         );
     }

@@ -67,7 +67,7 @@ ALERT_WEBHOOK_URL=
 FEISHU_WEBHOOK_URL=
 FEISHU_WEBHOOK_SECRET=              # 群机器人勾了「签名校验」才需要
 
-# 飞书远程补货（可选，见下方章节）
+# 飞书运营机器人：订单通知、查库存、补货、改价（见下方章节）
 FEISHU_APP_ID=
 FEISHU_APP_SECRET=
 FEISHU_VERIFICATION_TOKEN=
@@ -95,17 +95,26 @@ curl -s "https://api.telegram.org/bot<TOKEN>/setWebhook" \
 
 安全设计：webhook 带 secret_token 验签、只响应你的 chat_id、**只进不出**（没有任何读出卡密的命令）；卡密入库后机器人会立刻删掉你发的原消息，聊天记录不留卡密。想关闭功能：`curl "https://api.telegram.org/bot<TOKEN>/deleteWebhook"`。
 
-### 飞书远程补货（可选，大陆推荐）
+### 飞书运营机器人（大陆推荐）
 
 与 TG 补货能力完全一致（命令实现共用 `src/lib/restock.ts`），但飞书在大陆可用。在 [open.feishu.cn](https://open.feishu.cn) 开发者后台建一个**企业自建应用**：
 
-1. 先在 Supabase SQL Editor 执行 [`supabase/migrations/20260814_feishu_restock_hardening.sql`](supabase/migrations/20260814_feishu_restock_hardening.sql)，建立消息持久化去重和原子补货函数。
+1. 先在 Supabase SQL Editor 依次执行 [`supabase/migrations/20260814_feishu_restock_hardening.sql`](supabase/migrations/20260814_feishu_restock_hardening.sql) 和 [`supabase/migrations/20260814_feishu_orders_and_price.sql`](supabase/migrations/20260814_feishu_orders_and_price.sql)，建立消息去重、原子补货和改价审计。
 2. **凭证与基础信息** → 拿 `App ID` / `App Secret`。
 3. **权限管理** → 按最小权限开通 `im:message.group_at_msg:readonly`、`im:message:send_as_bot`、`im:message:recall`。
 4. **事件与回调** → 配置 `Verification Token` 和 `Encrypt Key`，先把上面的环境变量部署到服务器，再把请求地址填成 `https://你的域名/api/feishu`，并添加事件 **接收消息 `im.message.receive_v1`**。
 5. 发布版本 → 把机器人拉进专用群并设为群主/管理员 → 群里发 `@机器人 /list`。第一次可在开放平台的事件日志里找到 `event.message.chat_id`，填入 `FEISHU_CHAT_ID` 后重新部署，再发一次命令试通。
 
 保存请求地址时飞书会先打一次 URL 验证握手，`/api/feishu` 会原样回 `challenge`——**所以要先部署再保存配置**，否则会提示地址不可用。
+
+机器人会在订单成功创建并进入支付页时，向白名单群发送“新订单（待支付）”通知，内容包括商品、客户邮箱、订单金额、下单时间和订单号。群内命令：
+
+- `@机器人 /list` — 查看商品价格、库存与编号
+- `@机器人 /add 序号或商品名`，换行粘贴卡密 — 远程补货
+- `@机器人 /price 序号或商品名 新价格` — 修改售价，例如 `/price 1 19.9`
+- `@机器人 /help` — 查看帮助
+
+远程改价只接受普通十进制金额（最多两位小数，最高 ¥100,000.00），商品必须唯一匹配；更新与 `product_price_audit` 审计记录在同一数据库事务内完成。飞书事件按 `message_id` 持久化去重，同一条消息不会重复改价。
 
 ⚠️ **请在群里补货，并把机器人设为群主或管理员。** 飞书应用默认只能撤回自己发的消息（撤别人的会返回 `230026`）；具备群管理身份后才能撤回你粘贴的卡密。机器人撤不掉时会如实提示你手动删除。回调会先在 3 秒内响应，再由 Next.js `after()` 后台处理；数据库按 `message_id` 去重，重复推送不会重复入库。
 
@@ -152,6 +161,7 @@ crontab -e
 | `cards` | 卡密库存：所属商品 / 卡密内容 / 状态(未售·预占·已售) |
 | `orders` | 订单：虎皮椒订单号 / 金额 / 状态 / 买家 / 发出的卡密 |
 | `articles` | 首页「相关教程说明」卡片：标题 / 摘要 / 外链 / 是否发布 |
+| `product_price_audit` | 飞书远程改价审计：商品 / 原价 / 新价 / 群与消息来源 |
 
 发卡靠 Postgres 函数 `deliver_order()` 原子完成（`FOR UPDATE SKIP LOCKED` 防并发重复发卡，重复回调幂等）。
 

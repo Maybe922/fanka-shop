@@ -1,10 +1,8 @@
-import { after } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getBuyer } from "@/lib/supabase/auth-server";
 import { createXunhuOrder } from "@/lib/xunhupay";
 import { centsToYuanString } from "@/lib/money";
 import { publicEnv } from "@/lib/env";
-import { sendFeishuOrderCreated } from "@/lib/feishu";
 
 export const runtime = "nodejs";
 
@@ -161,19 +159,6 @@ export async function POST(req: Request) {
     .from("orders")
     .update({ pay_code: result.qrCode ?? result.payUrl })
     .eq("id", orderId);
-
-  // 下单通知不阻塞买家跳转支付页。消息明确标注「待支付」，避免与支付成功混淆。
-  const orderCreatedAt = new Date();
-  after(async () => {
-    const sent = await sendFeishuOrderCreated({
-      tradeOrderId,
-      productName: product.name,
-      email: buyer.email ?? null,
-      amountCents: product.price_cents,
-      createdAt: orderCreatedAt,
-    });
-    if (!sent) console.error("[orders] 飞书新订单通知发送失败", tradeOrderId);
-  });
 
   return Response.json({ orderId });
 }

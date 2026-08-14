@@ -15,16 +15,16 @@ import crypto from "node:crypto";
 const FEISHU_BASE = process.env.FEISHU_BASE_URL ?? "https://open.feishu.cn";
 const TIMEOUT_MS = 5000;
 
-export type OrderCreatedMessageInput = {
+export type PaidOrderMessageInput = {
   tradeOrderId: string;
   productName: string;
   email: string | null;
   amountCents: number;
-  createdAt: Date | string;
+  paidAt: Date | string;
 };
 
-export function formatOrderCreatedMessage(input: OrderCreatedMessageInput): string {
-  const createdAt = new Date(input.createdAt);
+export function formatPaidOrderMessage(input: PaidOrderMessageInput): string {
+  const paidAt = new Date(input.paidAt);
   const time = new Intl.DateTimeFormat("zh-CN", {
     timeZone: "Asia/Taipei",
     year: "numeric",
@@ -35,16 +35,16 @@ export function formatOrderCreatedMessage(input: OrderCreatedMessageInput): stri
     second: "2-digit",
     hour12: false,
   })
-    .format(createdAt)
+    .format(paidAt)
     .replaceAll("/", "-");
   const amount = `¥${(input.amountCents / 100).toFixed(2)}`;
 
   return [
-    "🛒 新订单（待支付）",
+    "✅ 订单支付成功",
     `商品：${input.productName}`,
     `客户邮箱：${input.email ?? "未提供"}`,
-    `订单金额：${amount}`,
-    `下单时间：${time}`,
+    `付款金额：${amount}`,
+    `付款时间：${time}`,
     `订单号：${input.tradeOrderId}`,
   ].join("\n");
 }
@@ -203,16 +203,16 @@ export async function sendFeishuMessage(
   return ok;
 }
 
-/** 新订单进入支付页后，主动通知已绑定的运营群。 */
-export async function sendFeishuOrderCreated(
-  order: OrderCreatedMessageInput,
+/** 支付确认后，主动通知已绑定的运营群。 */
+export async function sendFeishuPaidOrder(
+  order: PaidOrderMessageInput,
 ): Promise<boolean> {
   const chatId = process.env.FEISHU_CHAT_ID;
   if (!chatId || !hasFeishuApp()) return false;
   return sendFeishuMessage(
     chatId,
-    formatOrderCreatedMessage(order),
-    `order-created:${order.tradeOrderId}`,
+    formatPaidOrderMessage(order),
+    `order-paid:${order.tradeOrderId}`,
   );
 }
 

@@ -30,6 +30,8 @@ export const HELP_TEXT = [
 export const PRICE_HELP_TEXT =
   "/price 序号或商品名 新价格 — 修改售价，例如 /price 1 19.9";
 
+export const PRICES_HELP_TEXT = "/prices — 查看每一个商品的当前价格";
+
 // 商品排序与 /list 的编号必须一致（sort_order → created_at），/add 按序号找的
 // 就是这份列表里的第 N 个。
 async function listProducts(supabase: ServiceClient) {

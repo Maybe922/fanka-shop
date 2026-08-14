@@ -1,5 +1,7 @@
+import { after } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { verifyXunhuNotify } from "@/lib/xunhupay";
+import { notifyFeishuPaidOrderIfNeeded } from "@/lib/paid-order-notice";
 import {
   notifyStockOutIfNeeded,
   notifyProductSoldOutIfNeeded,
@@ -31,6 +33,10 @@ export async function POST(req: Request) {
       // Let 虎皮椒 retry by NOT returning success.
       return new Response("retry", { status: 500 });
     }
+    // deliver_order 已把订单置为 paid 后才允许认领；重复回调与主动查单不会重复通知。
+    after(() =>
+      notifyFeishuPaidOrderIfNeeded(supabase, params.trade_order_id),
+    );
     // 返回 null 可能是「已付但缺货」——读订单确认并告警（订单不存在则忽略）。
     if (secret === null) {
       const { data: o } = await supabase

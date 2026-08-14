@@ -64,6 +64,8 @@ create table if not exists orders (
   expires_at     timestamptz,                              -- 待支付超时时间（默认下单 +20min）
   contact        text,
   paid_at        timestamptz,
+  feishu_paid_notice_claimed_at timestamptz,
+  feishu_paid_notice_sent_at timestamptz,
   created_at     timestamptz not null default now()
 );
 
@@ -102,6 +104,8 @@ alter table orders add column if not exists user_id uuid references auth.users(i
 alter table orders add column if not exists email text;
 alter table orders add column if not exists pay_code text;
 alter table orders add column if not exists expires_at timestamptz;
+alter table orders add column if not exists feishu_paid_notice_claimed_at timestamptz;
+alter table orders add column if not exists feishu_paid_notice_sent_at timestamptz;
 alter table orders add column if not exists stock_alerted_at timestamptz; -- 「已付但缺货」告警去重标记
 alter table orders add column if not exists ip text; -- 下单来源 IP（限流：同 IP 未付订单上限）
 
@@ -212,6 +216,42 @@ begin
 
   return query
   select v_name, v_old_price, p_new_price_cents;
+end;
+$$;
+
+-- ── 飞书支付成功通知：仅 paid 订单可被认领，并发/重复回调只放行一个 ──
+create or replace function claim_feishu_paid_notice(p_trade_order_id text)
+returns table (
+  order_id       uuid,
+  trade_order_id text,
+  email          text,
+  amount_cents   integer,
+  paid_at        timestamptz,
+  product_name   text
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  return query
+  with claimed as (
+    update orders o
+    set feishu_paid_notice_claimed_at = now()
+    where o.trade_order_id = p_trade_order_id
+      and o.status = 'paid'
+      and o.feishu_paid_notice_sent_at is null
+      and (
+        o.feishu_paid_notice_claimed_at is null
+        or o.feishu_paid_notice_claimed_at < now() - interval '5 minutes'
+      )
+    returning o.id, o.trade_order_id, o.email, o.amount_cents,
+              o.paid_at, o.product_id
+  )
+  select c.id, c.trade_order_id, c.email, c.amount_cents,
+         coalesce(c.paid_at, now()), p.name
+  from claimed c
+  join products p on p.id = c.product_id;
 end;
 $$;
 
@@ -415,6 +455,7 @@ revoke execute on function expire_stale_orders() from public, anon, authenticate
 revoke execute on function deliver_order(text) from public, anon, authenticated;
 revoke execute on function add_cards_unique(uuid, text[]) from public, anon, authenticated;
 revoke execute on function update_product_price_from_bot(uuid, integer, text, text) from public, anon, authenticated;
+revoke execute on function claim_feishu_paid_notice(text) from public, anon, authenticated;
 
 grant execute on function create_order_reserved(uuid, text, integer, uuid, text, timestamptz) to service_role;
 grant execute on function cancel_order(uuid) to service_role;
@@ -422,6 +463,7 @@ grant execute on function expire_stale_orders() to service_role;
 grant execute on function deliver_order(text) to service_role;
 grant execute on function add_cards_unique(uuid, text[]) to service_role;
 grant execute on function update_product_price_from_bot(uuid, integer, text, text) to service_role;
+grant execute on function claim_feishu_paid_notice(text) to service_role;
 
 -- ── service_role 授权 ────────────────────────────────────────────
 -- 服务端（后台/下单/回调）全程用 service_role 读写 cards/orders/products，

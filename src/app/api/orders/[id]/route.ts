@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getBuyer } from "@/lib/supabase/auth-server";
 import { queryXunhuOrder } from "@/lib/xunhupay";
@@ -6,6 +7,7 @@ import {
   notifyProductSoldOutIfNeeded,
 } from "@/lib/alert";
 import type { OrderStatusPayload } from "@/lib/types";
+import { notifyFeishuPaidOrderIfNeeded } from "@/lib/paid-order-notice";
 
 export const runtime = "nodejs";
 
@@ -72,6 +74,12 @@ export async function GET(
         await notifyProductSoldOutIfNeeded(supabase, order.product_id);
       }
     }
+  }
+
+  // 回调通知失败时，买家后续查看已付订单会再次尝试；数据库租约 + 消息 UUID 去重。
+  if (order.status === "paid") {
+    const paidTradeOrderId = order.trade_order_id;
+    after(() => notifyFeishuPaidOrderIfNeeded(supabase, paidTradeOrderId));
   }
 
   // 已付但没卡 = 买家付了钱没拿到货 → 告警（原子去重，不会随轮询重复推）。

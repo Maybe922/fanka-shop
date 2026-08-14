@@ -73,6 +73,7 @@ FEISHU_APP_SECRET=
 FEISHU_VERIFICATION_TOKEN=
 FEISHU_ENCRYPT_KEY=
 FEISHU_CHAT_ID=
+FEISHU_OWNER_OPEN_ID=               # 老板 open_id；只允许这个用户私聊执行命令
 ```
 
 告警通道三选一或全配（配了哪个走哪个）。**大陆机房只有飞书和 `ALERT_WEBHOOK_URL` 打得通**，Telegram 出站会被墙。
@@ -99,17 +100,20 @@ curl -s "https://api.telegram.org/bot<TOKEN>/setWebhook" \
 
 与 TG 补货能力完全一致（命令实现共用 `src/lib/restock.ts`），但飞书在大陆可用。在 [open.feishu.cn](https://open.feishu.cn) 开发者后台建一个**企业自建应用**：
 
-1. 先在 Supabase SQL Editor 依次执行 [`supabase/migrations/20260814_feishu_restock_hardening.sql`](supabase/migrations/20260814_feishu_restock_hardening.sql) 和 [`supabase/migrations/20260814_feishu_orders_and_price.sql`](supabase/migrations/20260814_feishu_orders_and_price.sql)，建立消息去重、原子补货和改价审计。
+1. 先在 Supabase SQL Editor 依次执行 [`supabase/migrations/20260814_feishu_restock_hardening.sql`](supabase/migrations/20260814_feishu_restock_hardening.sql)、[`supabase/migrations/20260814_feishu_orders_and_price.sql`](supabase/migrations/20260814_feishu_orders_and_price.sql) 和 [`supabase/migrations/20260814_feishu_paid_notice_only.sql`](supabase/migrations/20260814_feishu_paid_notice_only.sql)，建立消息去重、原子补货、改价审计和支付通知认领。
 2. **凭证与基础信息** → 拿 `App ID` / `App Secret`。
 3. **权限管理** → 按最小权限开通 `im:message.group_at_msg:readonly`、`im:message:send_as_bot`、`im:message:recall`。
 4. **事件与回调** → 配置 `Verification Token` 和 `Encrypt Key`，先把上面的环境变量部署到服务器，再把请求地址填成 `https://你的域名/api/feishu`，并添加事件 **接收消息 `im.message.receive_v1`**。
 5. 发布版本 → 把机器人拉进专用群并设为群主/管理员 → 群里发 `@机器人 /list`。第一次可在开放平台的事件日志里找到 `event.message.chat_id`，填入 `FEISHU_CHAT_ID` 后重新部署，再发一次命令试通。
 
+如需私聊机器人，再开通 `im:message.p2p_msg:readonly` 并发布新版本。代码只接受 `FEISHU_OWNER_OPEN_ID` 对应用户的私聊；其他用户即使能找到机器人，也不能查库存、补货或改价。老板先在已绑定群里发送一次 `/list`，服务器只记录其 `open_id` 候选供绑定，不记录消息正文。
+
 保存请求地址时飞书会先打一次 URL 验证握手，`/api/feishu` 会原样回 `challenge`——**所以要先部署再保存配置**，否则会提示地址不可用。
 
-机器人会在订单成功创建并进入支付页时，向白名单群发送“新订单（待支付）”通知，内容包括商品、客户邮箱、订单金额、下单时间和订单号。群内命令：
+机器人只会在虎皮椒回调或主动查单确认订单已经支付后，向白名单群发送“订单支付成功”通知，内容包括商品、客户邮箱、付款金额、付款时间和订单号。未支付、支付失败或超时订单不会通知；重复回调由数据库原子认领和飞书消息 UUID 双重去重。群内命令：
 
 - `@机器人 /list` — 查看商品价格、库存与编号
+- `@机器人 /prices`（或 `/价格`）— 查看每一个商品的当前价格
 - `@机器人 /add 序号或商品名`，换行粘贴卡密 — 远程补货
 - `@机器人 /price 序号或商品名 新价格` — 修改售价，例如 `/price 1 19.9`
 - `@机器人 /help` — 查看帮助

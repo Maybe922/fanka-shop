@@ -8,9 +8,11 @@ import {
   sendFeishuMessage,
   verifyFeishuEventSignature,
 } from "@/lib/feishu";
+import { isAuthorizedFeishuChat } from "@/lib/feishu-access";
 import {
   HELP_TEXT,
   PRICE_HELP_TEXT,
+  PRICES_HELP_TEXT,
   handleAdd,
   handleList,
   handlePrice,
@@ -20,12 +22,13 @@ import {
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
-const FEISHU_HELP_TEXT = `${HELP_TEXT}\n${PRICE_HELP_TEXT}`;
+const FEISHU_HELP_TEXT = `${HELP_TEXT}\n${PRICES_HELP_TEXT}\n${PRICE_HELP_TEXT}`;
 
 // POST /api/feishu — 飞书事件订阅回调：老板在飞书里远程补货。
 // 命令实现见 lib/restock.ts（与 Telegram 机器人共用）。
 //
-// 安全模型：Encrypt Key 加密 + 原始包体签名 + Verification Token + chat_id 白名单；
+// 安全模型：Encrypt Key 加密 + 原始包体签名 + Verification Token；群聊按 chat_id
+// 白名单，私聊按老板 open_id 白名单；
 // 数据库按 message_id 持久化去重；命令只进不出，不提供任何读取卡密原文的能力。
 //
 // 与 Telegram 版的差异：飞书应用撤回不了别人发的消息，除非机器人是群主。
@@ -42,6 +45,12 @@ type FeishuEvent = {
     event_type?: string;
   };
   event?: {
+    sender?: {
+      sender_id?: {
+        open_id?: string;
+      };
+      sender_type?: string;
+    };
     message?: {
       message_id?: string;
       chat_id?: string;
@@ -147,7 +156,9 @@ export async function POST(req: Request) {
   }
 
   const msg = body.event?.message;
+  const senderOpenId = body.event?.sender?.sender_id?.open_id;
   const ownerChatId = process.env.FEISHU_CHAT_ID;
+  const ownerOpenId = process.env.FEISHU_OWNER_OPEN_ID;
 
   // 首次接入时需要从真实事件里取得 chat_id，再写入白名单。
   // 只在尚未配置白名单时记录会话标识，不记录消息正文或发送人。
@@ -155,11 +166,28 @@ export async function POST(req: Request) {
     console.info("[feishu] 待绑定会话", { chatId: msg.chat_id });
   }
 
-  // ③ 只认白名单会话里的纯文本消息
+  // 已绑定群里的真实消息可用于确认老板的 open_id；只记录候选，不自动授权。
+  if (
+    !ownerOpenId &&
+    ownerChatId &&
+    msg?.chat_id === ownerChatId &&
+    senderOpenId
+  ) {
+    console.info("[feishu] 待绑定私聊用户", { openId: senderOpenId });
+  }
+
+  const authorizedChat = isAuthorizedFeishuChat({
+    chatId: msg?.chat_id,
+    chatType: msg?.chat_type,
+    senderOpenId,
+    ownerChatId,
+    ownerOpenId,
+  });
+
+  // ③ 只认白名单群，或老板本人 open_id 发来的私聊纯文本消息。
   if (
     !msg?.chat_id ||
-    !ownerChatId ||
-    msg.chat_id !== ownerChatId ||
+    !authorizedChat ||
     msg.message_type !== "text"
   ) {
     return Response.json({ code: 0 });
@@ -208,6 +236,8 @@ async function processMessage(task: {
         );
         break;
       case "/list":
+      case "/prices":
+      case "/价格":
         await sendFeishuMessage(
           task.chatId,
           `${await handleList(supabase)}\n改价：${PRICE_HELP_TEXT}`,

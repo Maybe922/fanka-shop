@@ -172,19 +172,20 @@ async function appApi(
   }
 }
 
-/** 以应用身份往某个会话发文本消息。 */
-export async function sendFeishuMessage(
-  chatId: string,
+/** 以应用身份向指定 ID 发文本消息。 */
+async function sendFeishuMessageTo(
+  receiveIdType: "chat_id" | "open_id",
+  receiveId: string,
   text: string,
   uuid?: string,
 ): Promise<boolean> {
   // content 必须是「序列化后的 JSON 字符串」而不是对象 —— 飞书 API 的老坑。
   const { ok, code } = await appApi(
-    "/open-apis/im/v1/messages?receive_id_type=chat_id",
+    `/open-apis/im/v1/messages?receive_id_type=${receiveIdType}`,
     {
       method: "POST",
       body: {
-        receive_id: chatId,
+        receive_id: receiveId,
         msg_type: "text",
         content: JSON.stringify({ text }),
         ...(uuid
@@ -203,16 +204,49 @@ export async function sendFeishuMessage(
   return ok;
 }
 
-/** 支付确认后，主动通知已绑定的运营群。 */
+/** 以应用身份往某个会话发文本消息。 */
+export async function sendFeishuMessage(
+  chatId: string,
+  text: string,
+  uuid?: string,
+): Promise<boolean> {
+  return sendFeishuMessageTo("chat_id", chatId, text, uuid);
+}
+
+/** 以应用身份私聊指定用户。 */
+export async function sendFeishuDirectMessage(
+  openId: string,
+  text: string,
+  uuid?: string,
+): Promise<boolean> {
+  return sendFeishuMessageTo("open_id", openId, text, uuid);
+}
+
+/** 支付确认后优先私聊老板；私聊不可用时再尝试已绑定运营群。 */
 export async function sendFeishuPaidOrder(
   order: PaidOrderMessageInput,
 ): Promise<boolean> {
+  if (!hasFeishuApp()) return false;
+
+  const text = formatPaidOrderMessage(order);
+  const ownerOpenId = process.env.FEISHU_OWNER_OPEN_ID;
+  if (
+    ownerOpenId &&
+    (await sendFeishuDirectMessage(
+      ownerOpenId,
+      text,
+      `order-paid:${order.tradeOrderId}:owner`,
+    ))
+  ) {
+    return true;
+  }
+
   const chatId = process.env.FEISHU_CHAT_ID;
-  if (!chatId || !hasFeishuApp()) return false;
+  if (!chatId) return false;
   return sendFeishuMessage(
     chatId,
-    formatPaidOrderMessage(order),
-    `order-paid:${order.tradeOrderId}`,
+    text,
+    `order-paid:${order.tradeOrderId}:group`,
   );
 }
 

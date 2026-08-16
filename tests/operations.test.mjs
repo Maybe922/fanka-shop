@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { formatPaidOrderMessage } from "../src/lib/feishu.ts";
+import {
+  formatPaidOrderMessage,
+  sendFeishuPaidOrder,
+} from "../src/lib/feishu.ts";
 import { parsePriceCommandArgs } from "../src/lib/price-command.ts";
 import { isAuthorizedFeishuChat } from "../src/lib/feishu-access.ts";
 
@@ -71,4 +74,78 @@ test("private Feishu commands require the exact owner open_id", () => {
     }),
     true,
   );
+});
+
+test("paid order notices prefer owner DM and fall back to the operations group", async () => {
+  const originalFetch = globalThis.fetch;
+  const originalEnv = {
+    appId: process.env.FEISHU_APP_ID,
+    appSecret: process.env.FEISHU_APP_SECRET,
+    ownerOpenId: process.env.FEISHU_OWNER_OPEN_ID,
+    chatId: process.env.FEISHU_CHAT_ID,
+  };
+  const messageCalls = [];
+  let ownerShouldFail = false;
+
+  process.env.FEISHU_APP_ID = "cli_test";
+  process.env.FEISHU_APP_SECRET = "secret_test";
+  process.env.FEISHU_OWNER_OPEN_ID = "ou_owner";
+  process.env.FEISHU_CHAT_ID = "oc_group";
+  globalThis.fetch = async (input, init) => {
+    const url = String(input);
+    if (url.includes("tenant_access_token")) {
+      return Response.json({
+        code: 0,
+        tenant_access_token: "tenant_test",
+        expire: 7200,
+      });
+    }
+
+    const receiveIdType = new URL(url).searchParams.get("receive_id_type");
+    const body = JSON.parse(String(init?.body));
+    messageCalls.push({ receiveIdType, receiveId: body.receive_id });
+    if (receiveIdType === "open_id" && ownerShouldFail) {
+      return Response.json({ code: 230013 });
+    }
+    return Response.json({ code: 0 });
+  };
+
+  try {
+    const baseOrder = {
+      productName: "GPT Plus",
+      email: "buyer@example.com",
+      amountCents: 14800,
+      paidAt: "2026-08-16T11:46:05.000Z",
+    };
+
+    assert.equal(
+      await sendFeishuPaidOrder({ ...baseOrder, tradeOrderId: "FK-DM" }),
+      true,
+    );
+    assert.deepEqual(messageCalls, [
+      { receiveIdType: "open_id", receiveId: "ou_owner" },
+    ]);
+
+    messageCalls.length = 0;
+    ownerShouldFail = true;
+    assert.equal(
+      await sendFeishuPaidOrder({ ...baseOrder, tradeOrderId: "FK-GROUP" }),
+      true,
+    );
+    assert.deepEqual(messageCalls, [
+      { receiveIdType: "open_id", receiveId: "ou_owner" },
+      { receiveIdType: "chat_id", receiveId: "oc_group" },
+    ]);
+  } finally {
+    globalThis.fetch = originalFetch;
+    for (const [key, value] of Object.entries({
+      FEISHU_APP_ID: originalEnv.appId,
+      FEISHU_APP_SECRET: originalEnv.appSecret,
+      FEISHU_OWNER_OPEN_ID: originalEnv.ownerOpenId,
+      FEISHU_CHAT_ID: originalEnv.chatId,
+    })) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
 });

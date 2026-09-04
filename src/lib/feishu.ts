@@ -2,11 +2,11 @@ import crypto from "node:crypto";
 
 // 飞书（Lark）接入。两条独立的通道，各管各的，互不依赖：
 //
-//   1) 自定义机器人 webhook（FEISHU_WEBHOOK_URL）—— 只出不进，用于运营告警。
+//   1) 自定义机器人 webhook（FEISHU_WEBHOOK_URL）—— 只出不进，用于运营告警和群内订单通知。
 //      群设置里「添加机器人 → 自定义机器人」拿到的地址，无需建应用。
 //      纯出站请求，大陆 VPS 也能用（不像 api.telegram.org 会被墙）。
 //
-//   2) 自建应用（FEISHU_APP_ID/SECRET）—— 用于订单通知、收命令、回消息、撤回消息。
+//   2) 自建应用（FEISHU_APP_ID/SECRET）—— 用于收命令、回消息、撤回消息和老板私聊通知。
 //      需要在开放平台建应用并订阅 im.message.receive_v1 事件。
 //
 // 告警走 (1) 而不是 (2)，是刻意的：告警链路不该依赖 token 刷新能不能成功。
@@ -52,22 +52,23 @@ export function formatPaidOrderMessage(input: PaidOrderMessageInput): string {
 // ── (1) 自定义机器人：告警推送 ────────────────────────────────────
 
 /**
- * 推一条文本到自定义机器人所在的群。未配置地址则静默跳过。
+ * 推一条文本到自定义机器人所在的群。未配置地址则返回 false。
  *
  * 若群机器人开了「签名校验」，配上 FEISHU_WEBHOOK_SECRET 即可：
  * 签名 = base64(HmacSHA256(key = `{timestamp}\n{secret}`, data = 空))，
  * timestamp 与 sign 放在 JSON body 里（不是 query 参数，网上不少教程写错了）。
  */
-export async function sendFeishuAlert(
-  title: string,
-  text: string,
-): Promise<void> {
+export function hasFeishuWebhook(): boolean {
+  return Boolean(process.env.FEISHU_WEBHOOK_URL);
+}
+
+async function sendFeishuWebhookText(text: string): Promise<boolean> {
   const url = process.env.FEISHU_WEBHOOK_URL;
-  if (!url) return;
+  if (!url) return false;
 
   const body: Record<string, unknown> = {
     msg_type: "text",
-    content: { text: `${title}\n${text}` },
+    content: { text },
   };
 
   const secret = process.env.FEISHU_WEBHOOK_SECRET;
@@ -89,13 +90,31 @@ export async function sendFeishuAlert(
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
     // 飞书出错时照样回 HTTP 200，真正的结果在 body 的 code 里。
-    const data = (await res.json().catch(() => ({}))) as { code?: number };
-    if (!res.ok || data.code !== 0) {
-      console.error("[ALERT] 飞书推送被拒", res.status, data.code ?? "无响应码");
+    const data = (await res.json().catch(() => ({}))) as {
+      code?: number;
+      StatusCode?: number;
+    };
+    const resultCode = data.code ?? data.StatusCode;
+    if (!res.ok || resultCode !== 0) {
+      console.error(
+        "[feishu-webhook] 推送被拒",
+        res.status,
+        resultCode ?? "无响应码",
+      );
+      return false;
     }
+    return true;
   } catch (err) {
-    console.error("[ALERT] 飞书推送异常", err);
+    console.error("[feishu-webhook] 推送异常", err);
+    return false;
   }
+}
+
+export async function sendFeishuAlert(
+  title: string,
+  text: string,
+): Promise<void> {
+  await sendFeishuWebhookText(`${title}\n${text}`);
 }
 
 // ── (2) 自建应用：token / 发消息 / 撤回 ───────────────────────────
@@ -106,6 +125,10 @@ let tokenCache: { token: string; expiresAt: number } | null = null;
 
 export function hasFeishuApp(): boolean {
   return Boolean(process.env.FEISHU_APP_ID && process.env.FEISHU_APP_SECRET);
+}
+
+export function hasFeishuPaidOrderTarget(): boolean {
+  return hasFeishuApp() || hasFeishuWebhook();
 }
 
 async function tenantAccessToken(): Promise<string | null> {
@@ -222,32 +245,38 @@ export async function sendFeishuDirectMessage(
   return sendFeishuMessageTo("open_id", openId, text, uuid);
 }
 
-/** 支付确认后优先私聊老板；私聊不可用时再尝试已绑定运营群。 */
+/** 支付确认后优先使用应用私聊老板；不可用时发送到应用群或自定义机器人群。 */
 export async function sendFeishuPaidOrder(
   order: PaidOrderMessageInput,
 ): Promise<boolean> {
-  if (!hasFeishuApp()) return false;
-
   const text = formatPaidOrderMessage(order);
-  const ownerOpenId = process.env.FEISHU_OWNER_OPEN_ID;
-  if (
-    ownerOpenId &&
-    (await sendFeishuDirectMessage(
-      ownerOpenId,
-      text,
-      `order-paid:${order.tradeOrderId}:owner`,
-    ))
-  ) {
-    return true;
+  if (hasFeishuApp()) {
+    const ownerOpenId = process.env.FEISHU_OWNER_OPEN_ID;
+    if (
+      ownerOpenId &&
+      (await sendFeishuDirectMessage(
+        ownerOpenId,
+        text,
+        `order-paid:${order.tradeOrderId}:owner`,
+      ))
+    ) {
+      return true;
+    }
+
+    const chatId = process.env.FEISHU_CHAT_ID;
+    if (
+      chatId &&
+      (await sendFeishuMessage(
+        chatId,
+        text,
+        `order-paid:${order.tradeOrderId}:group`,
+      ))
+    ) {
+      return true;
+    }
   }
 
-  const chatId = process.env.FEISHU_CHAT_ID;
-  if (!chatId) return false;
-  return sendFeishuMessage(
-    chatId,
-    text,
-    `order-paid:${order.tradeOrderId}:group`,
-  );
+  return sendFeishuWebhookText(text);
 }
 
 /**

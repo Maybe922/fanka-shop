@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   formatPaidOrderMessage,
+  hasFeishuPaidOrderTarget,
   sendFeishuPaidOrder,
 } from "../src/lib/feishu.ts";
 import { parsePriceCommandArgs } from "../src/lib/price-command.ts";
@@ -83,14 +84,19 @@ test("paid order notices prefer owner DM and fall back to the operations group",
     appSecret: process.env.FEISHU_APP_SECRET,
     ownerOpenId: process.env.FEISHU_OWNER_OPEN_ID,
     chatId: process.env.FEISHU_CHAT_ID,
+    webhookUrl: process.env.FEISHU_WEBHOOK_URL,
+    webhookSecret: process.env.FEISHU_WEBHOOK_SECRET,
   };
   const messageCalls = [];
+  const webhookBodies = [];
   let ownerShouldFail = false;
 
   process.env.FEISHU_APP_ID = "cli_test";
   process.env.FEISHU_APP_SECRET = "secret_test";
   process.env.FEISHU_OWNER_OPEN_ID = "ou_owner";
   process.env.FEISHU_CHAT_ID = "oc_group";
+  delete process.env.FEISHU_WEBHOOK_URL;
+  delete process.env.FEISHU_WEBHOOK_SECRET;
   globalThis.fetch = async (input, init) => {
     const url = String(input);
     if (url.includes("tenant_access_token")) {
@@ -99,6 +105,10 @@ test("paid order notices prefer owner DM and fall back to the operations group",
         tenant_access_token: "tenant_test",
         expire: 7200,
       });
+    }
+    if (url.includes("/bot/v2/hook/")) {
+      webhookBodies.push(JSON.parse(String(init?.body)));
+      return Response.json({ code: 0 });
     }
 
     const receiveIdType = new URL(url).searchParams.get("receive_id_type");
@@ -136,6 +146,24 @@ test("paid order notices prefer owner DM and fall back to the operations group",
       { receiveIdType: "open_id", receiveId: "ou_owner" },
       { receiveIdType: "chat_id", receiveId: "oc_group" },
     ]);
+
+    messageCalls.length = 0;
+    delete process.env.FEISHU_APP_ID;
+    delete process.env.FEISHU_APP_SECRET;
+    delete process.env.FEISHU_OWNER_OPEN_ID;
+    delete process.env.FEISHU_CHAT_ID;
+    process.env.FEISHU_WEBHOOK_URL =
+      "https://open.feishu.cn/open-apis/bot/v2/hook/test";
+
+    assert.equal(hasFeishuPaidOrderTarget(), true);
+    assert.equal(
+      await sendFeishuPaidOrder({ ...baseOrder, tradeOrderId: "FK-WEBHOOK" }),
+      true,
+    );
+    assert.equal(messageCalls.length, 0);
+    assert.equal(webhookBodies.length, 1);
+    assert.equal(webhookBodies[0].msg_type, "text");
+    assert.match(webhookBodies[0].content.text, /FK-WEBHOOK/);
   } finally {
     globalThis.fetch = originalFetch;
     for (const [key, value] of Object.entries({
@@ -143,6 +171,8 @@ test("paid order notices prefer owner DM and fall back to the operations group",
       FEISHU_APP_SECRET: originalEnv.appSecret,
       FEISHU_OWNER_OPEN_ID: originalEnv.ownerOpenId,
       FEISHU_CHAT_ID: originalEnv.chatId,
+      FEISHU_WEBHOOK_URL: originalEnv.webhookUrl,
+      FEISHU_WEBHOOK_SECRET: originalEnv.webhookSecret,
     })) {
       if (value === undefined) delete process.env[key];
       else process.env[key] = value;

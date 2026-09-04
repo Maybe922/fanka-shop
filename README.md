@@ -63,7 +63,8 @@ TELEGRAM_WEBHOOK_SECRET=
 # 运营告警 webhook（可选，与 TG 并存；支持 Server酱/PushPlus 等表单式地址）
 ALERT_WEBHOOK_URL=
 
-# 飞书告警（大陆环境推荐）：群设置 → 添加机器人 → 自定义机器人，复制地址
+# 飞书群机器人（大陆环境推荐）：运营告警和支付成功通知；不支持群内交互命令
+# 群设置 → 添加机器人 → 自定义机器人，复制地址
 FEISHU_WEBHOOK_URL=
 FEISHU_WEBHOOK_SECRET=              # 群机器人勾了「签名校验」才需要
 

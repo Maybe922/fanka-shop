@@ -1,4 +1,4 @@
-import { sendFeishuPaidOrder } from "@/lib/feishu";
+import { hasFeishuApp, sendFeishuPaidOrder } from "@/lib/feishu";
 import type { createServiceClient } from "@/lib/supabase/server";
 
 type ServiceClient = ReturnType<typeof createServiceClient>;
@@ -20,6 +20,8 @@ export async function notifyFeishuPaidOrderIfNeeded(
   supabase: ServiceClient,
   tradeOrderId: string,
 ): Promise<void> {
+  if (!hasFeishuApp()) return;
+
   const { data, error } = await supabase.rpc("claim_feishu_paid_notice", {
     p_trade_order_id: tradeOrderId,
   });

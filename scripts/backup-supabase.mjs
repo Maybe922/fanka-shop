@@ -21,7 +21,7 @@ const ENV_FILE = process.env.ENV_FILE ?? path.resolve(".env.local");
 const BACKUP_ROOT =
   process.env.BACKUP_ROOT ?? path.join(os.homedir(), "backups", "fanka");
 const KEEP_DAYS = 7;
-const TABLES = ["products", "cards", "orders", "articles"];
+const TABLES = ["products", "cards", "orders", "articles", "usdt_payments", "usdt_receipts"];
 const PAGE_SIZE = 1000;
 const FETCH_TIMEOUT_MS = 30_000;
 
@@ -59,7 +59,7 @@ async function dumpTable(env, table) {
   const rows = [];
   for (let offset = 0; ; offset += PAGE_SIZE) {
     const res = await fetch(
-      `${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/${table}?select=*&order=created_at.asc`,
+      `${env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/${table}?select=*&order=${table === "usdt_receipts" ? "received_at.asc,tx_hash.asc,log_index.asc" : table === "usdt_payments" ? "created_at.asc,order_id.asc" : "created_at.asc,id.asc"}`,
       {
         headers: {
           apikey: env.SUPABASE_SERVICE_ROLE_KEY,

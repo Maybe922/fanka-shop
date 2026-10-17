@@ -12,7 +12,7 @@ import { notifyFeishuPaidOrderIfNeeded } from "@/lib/paid-order-notice";
 export const runtime = "nodejs";
 
 const ORDER_COLS =
-  "id, status, card_id, product_id, expires_at, trade_order_id, user_id";
+  "id, cancelled_at, status, card_id, product_id, expires_at, trade_order_id, user_id, payment_method";
 
 // GET /api/orders/:id → order status (+ card secret once paid)
 export async function GET(
@@ -41,7 +41,33 @@ export async function GET(
     }
   }
 
-  // 待支付且已超时 → 触发过期清理（释放预占卡），再回读最新状态。
+  // 过期只是本地库存状态；回调丢失时仍需向支付平台核实是否已付款。
+  if (
+    (order.status === "pending" || order.status === "expired") &&
+    order.trade_order_id && order.payment_method === "wechat"
+  ) {
+    const q = await queryXunhuOrder(order.trade_order_id);
+    if (q.paid) {
+      const { error } = await supabase.rpc("deliver_order", {
+        p_trade_order_id: order.trade_order_id,
+      });
+      if (error) {
+        console.error("[orders] 发卡失败", error.message);
+        return Response.json({ error: "支付已确认，发货处理中，请稍后重试" }, { status: 503 });
+      }
+      const { data: refreshed } = await supabase
+        .from("orders")
+        .select(ORDER_COLS)
+        .eq("id", id)
+        .single();
+      if (refreshed) order = refreshed;
+      if (order.status === "paid" && order.card_id) {
+        await notifyProductSoldOutIfNeeded(supabase, order.product_id);
+      }
+    }
+  }
+
+  // 核实支付后仍未付款，才回收超时订单的预占库存。
   if (
     order.status === "pending" &&
     order.expires_at &&
@@ -56,26 +82,6 @@ export async function GET(
     if (refreshed) order = refreshed;
   }
 
-  // 仍待支付 → 主动向虎皮椒查单（不依赖回调能否打进来）。已付则立即发卡。
-  if (order.status === "pending" && order.trade_order_id) {
-    const q = await queryXunhuOrder(order.trade_order_id);
-    if (q.paid) {
-      await supabase.rpc("deliver_order", {
-        p_trade_order_id: order.trade_order_id,
-      });
-      const { data: refreshed } = await supabase
-        .from("orders")
-        .select(ORDER_COLS)
-        .eq("id", id)
-        .single();
-      if (refreshed) order = refreshed;
-      // 本次查单触发了发卡 → 若该商品因此售罄，推补货提醒（内部去重）。
-      if (order.status === "paid" && order.card_id) {
-        await notifyProductSoldOutIfNeeded(supabase, order.product_id);
-      }
-    }
-  }
-
   // 回调通知失败时，买家后续查看已付订单会再次尝试；数据库租约 + 消息 UUID 去重。
   if (order.status === "paid") {
     const paidTradeOrderId = order.trade_order_id;
@@ -88,11 +94,13 @@ export async function GET(
   }
 
   let secret: string | null = null;
-  if (order.card_id) {
+  if (order.status === "paid" && order.card_id) {
     const { data: card } = await supabase
       .from("cards")
       .select("secret")
       .eq("id", order.card_id)
+      .eq("order_id", order.id)
+      .eq("status", "sold")
       .single();
     secret = card?.secret ?? null;
   }
@@ -103,12 +111,21 @@ export async function GET(
     .eq("id", order.product_id)
     .single();
 
+  let paymentState: OrderStatusPayload["paymentState"];
+  if (["usdt_bep20", "usdt_trc20"].includes(order.payment_method)) {
+    const { data } = await supabase.from("usdt_payments").select("state").eq("order_id", id).single();
+    paymentState = data?.state;
+  }
   const payload: OrderStatusPayload = {
+    paymentState,
+    cancelledAt: order.cancelled_at ?? null,
     status: order.status,
     secret,
     stockOut: order.status === "paid" && !order.card_id,
     productName: product?.name ?? "",
     expiresAt: order.expires_at ?? null,
   };
-  return Response.json(payload);
+  return Response.json(payload, {
+    headers: { "Cache-Control": "private, no-store" },
+  });
 }

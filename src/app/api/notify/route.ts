@@ -25,6 +25,11 @@ export async function POST(req: Request) {
   // status "OD" = paid/completed.
   if (params.status === "OD" && params.trade_order_id) {
     const supabase = createServiceClient();
+    // A WeChat callback may only settle a WeChat order.
+    const { data: paymentOrder, error: lookupError } = await supabase.from("orders")
+      .select("payment_method").eq("trade_order_id", params.trade_order_id).maybeSingle();
+    if (lookupError) return new Response("retry", { status: 500 });
+    if (!paymentOrder || paymentOrder.payment_method !== "wechat") return new Response("order mismatch", { status: 400 });
     const { data: secret, error } = await supabase.rpc("deliver_order", {
       p_trade_order_id: params.trade_order_id,
     });

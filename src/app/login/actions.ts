@@ -1,11 +1,14 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { z } from "zod";
 import { createAuthClient } from "@/lib/supabase/auth-server";
 import { isTurnstileEnabled, verifyTurnstile } from "@/lib/turnstile";
+import { trustedClientIp } from "@/lib/auth-email-policy";
+import { sendLoginCode } from "@/lib/auth-email";
 
-export type AuthResult = { ok: boolean; error: string | null };
+export type AuthResult = { ok: boolean; error: string | null; retryAfter?: number };
 
 const emailSchema = z
   .string()
@@ -24,7 +27,7 @@ function humanize(msg: string): string {
   return msg;
 }
 
-// 第一步：发送邮箱验证码。shouldCreateUser=true → 首次邮箱自动注册（无密码）。
+// 第一步：人机验证、原子限额预留，再生成并发送验证码。
 // turnstileToken：Cloudflare 人机验证 token（配置了 secret 时必校验）。
 export async function requestOtp(
   email: string,
@@ -33,19 +36,18 @@ export async function requestOtp(
   const parsed = emailSchema.safeParse(email);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
 
+  const ip = trustedClientIp(await headers());
+  if (!ip) return { ok: false, error: "暂时无法验证网络来源，请稍后再试" };
+  if (process.env.NODE_ENV === "production" && !isTurnstileEnabled()) {
+    return { ok: false, error: "安全验证暂不可用，请稍后再试" };
+  }
   // 人机验证：拦在发邮件之前，挡掉机器人狂刷验证码。
   if (isTurnstileEnabled()) {
-    const human = await verifyTurnstile(turnstileToken);
+    const human = await verifyTurnstile(turnstileToken, ip);
     if (!human) return { ok: false, error: "人机验证未通过，请重试" };
   }
 
-  const supabase = await createAuthClient();
-  const { error } = await supabase.auth.signInWithOtp({
-    email: parsed.data,
-    options: { shouldCreateUser: true },
-  });
-  if (error) return { ok: false, error: humanize(error.message) };
-  return { ok: true, error: null };
+  return sendLoginCode(parsed.data, ip);
 }
 
 // 第二步：校验 6 位验证码 → 建立买家会话（cookie 由 createAuthClient 写入）。

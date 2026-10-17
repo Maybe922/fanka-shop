@@ -8,6 +8,7 @@ export interface PublicProduct {
   price_cents: number;
   sort_order: number;
   stock: number;
+  sold_count: number; // 网站已付款订单数
   image_url: string | null;
   contact_only: boolean; // 联系客服购买（不走自动发卡，无库存也不置灰）
 }
@@ -40,6 +41,7 @@ export interface AdminCard {
 }
 
 export interface AdminOrder {
+  cancelled_at?: string | null;
   id: string;
   product_id: string;
   product_name: string | null;
@@ -54,6 +56,8 @@ export interface AdminOrder {
 }
 
 export interface OrderStatusPayload {
+  cancelledAt?: string | null;
+  paymentState?: "watching" | "paid" | "expired" | "review";
   status: OrderState;
   secret: string | null;
   stockOut: boolean;

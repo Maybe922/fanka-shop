@@ -117,6 +117,7 @@ alter table orders add  constraint orders_status_check check (status in ('pendin
 create index if not exists idx_cards_product_status on cards (product_id, status);
 create index if not exists idx_articles_published on articles (is_published, sort_order, created_at);
 create index if not exists idx_orders_created on orders (created_at desc);
+create index if not exists idx_orders_paid_product on orders (product_id) where status = 'paid';
 create index if not exists idx_orders_user on orders (user_id, created_at desc);
 create index if not exists idx_orders_ip_pending on orders (ip) where status = 'pending'; -- 限流查询用
 create index if not exists idx_bot_events_created on bot_events (created_at);
@@ -416,7 +417,8 @@ select
   p.id, p.name, p.description, p.price_cents, p.sort_order,
   (select count(*) from cards c where c.product_id = p.id and c.status = 'unsold') as stock,
   p.image_url,
-  p.contact_only
+  p.contact_only,
+  (select count(*) from orders o where o.product_id = p.id and o.status = 'paid') as sold_count
 from products p
 where p.is_active = true
 order by p.sort_order, p.created_at;
@@ -483,3 +485,74 @@ grant all on all functions in schema public to service_role;
 alter default privileges in schema public grant all on tables    to service_role;
 alter default privileges in schema public grant all on sequences to service_role;
 alter default privileges in schema public grant all on functions to service_role;
+
+-- 并发下单限额（与 20260929_atomic_order_limits.sql 保持同步）
+-- 在 Supabase SQL Editor 执行。只增加下单函数，不修改现有订单或卡密。
+begin;
+
+create or replace function public.create_order_reserved_limited(
+  p_product_id uuid,
+  p_trade_order_id text,
+  p_amount_cents integer,
+  p_user_id uuid,
+  p_email text,
+  p_expires_at timestamptz,
+  p_ip text
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_order_id uuid;
+  v_count integer;
+begin
+  if p_user_id is null then
+    raise exception 'ORDER_USER_REQUIRED';
+  end if;
+
+  -- 同 IP、同账号的请求依次执行；锁一直持有到预占库存和记录 IP 的事务结束。
+  if p_ip is not null then
+    perform pg_advisory_xact_lock(hashtextextended('order-ip:' || p_ip, 0));
+  end if;
+  perform pg_advisory_xact_lock(hashtextextended('order-user:' || p_user_id::text, 0));
+
+  select count(*) into v_count from orders
+  where user_id = p_user_id and status = 'pending';
+  if v_count >= 3 then
+    raise exception 'ORDER_LIMIT_PENDING';
+  end if;
+
+  if p_ip is not null then
+    select count(*) into v_count from orders
+    where ip = p_ip and status = 'pending';
+    if v_count >= 6 then
+      raise exception 'ORDER_LIMIT_IP';
+    end if;
+  end if;
+
+  select count(*) into v_count from orders
+  where user_id = p_user_id and created_at >= now() - interval '1 hour';
+  if v_count >= 10 then
+    raise exception 'ORDER_LIMIT_HOURLY';
+  end if;
+
+  v_order_id := create_order_reserved(
+    p_product_id, p_trade_order_id, p_amount_cents,
+    p_user_id, p_email, p_expires_at
+  );
+  if v_order_id is not null then
+    update orders set ip = p_ip where id = v_order_id;
+  end if;
+  return v_order_id;
+end;
+$$;
+
+revoke execute on function public.create_order_reserved_limited(uuid, text, integer, uuid, text, timestamptz, text)
+from public, anon, authenticated;
+grant execute on function public.create_order_reserved_limited(uuid, text, integer, uuid, text, timestamptz, text)
+to service_role;
+
+notify pgrst, 'reload schema';
+commit;

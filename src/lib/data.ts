@@ -16,11 +16,12 @@ import type {
 export async function getPublicProducts(): Promise<PublicProduct[]> {
   if (!hasSupabaseConfig()) return [];
   try {
+    await expireStaleOrders();
     const supabase = createPublicClient();
     const { data, error } = await supabase
       .from("public_products")
       .select(
-        "id, name, description, price_cents, sort_order, stock, image_url, contact_only",
+        "id, name, description, price_cents, sort_order, stock, image_url, contact_only, sold_count",
       );
     if (error) {
       console.error("[getPublicProducts]", error.message);
@@ -93,7 +94,8 @@ export async function getAdminProducts(): Promise<ProductWithStock[]> {
 // 机会式回收：把超时未付订单标记过期并释放预占卡。后台加载时调用。
 export async function expireStaleOrders(): Promise<void> {
   const supabase = createServiceClient();
-  await supabase.rpc("expire_stale_orders");
+  const { error } = await supabase.rpc("expire_stale_orders");
+  if (error) throw new Error(`回收过期库存失败：${error.message}`);
 }
 
 // All 卡密 across products, newest first — grouped per product by the admin page.
@@ -138,7 +140,7 @@ export async function getOrdersPage(
   const { data, error, count } = await supabase
     .from("orders")
     .select(
-      "id, product_id, trade_order_id, amount_cents, status, card_id, email, contact, paid_at, created_at, products(name), cards(secret)",
+      "id, product_id, trade_order_id, amount_cents, status, cancelled_at, card_id, email, contact, paid_at, created_at, products(name), cards(secret)",
       { count: "exact" },
     )
     .order("created_at", { ascending: false })
@@ -161,6 +163,7 @@ export async function getOrdersPage(
       trade_order_id: row.trade_order_id,
       amount_cents: row.amount_cents,
       status: row.status,
+      cancelled_at: row.cancelled_at,
       card_id: row.card_id,
       card_secret: cardSecret,
       contact: row.email ?? row.contact ?? null,
@@ -178,7 +181,7 @@ export async function getMyOrders(userId: string): Promise<AdminOrder[]> {
   const { data, error } = await supabase
     .from("orders")
     .select(
-      "id, product_id, trade_order_id, amount_cents, status, card_id, paid_at, created_at, products(name)",
+      "id, product_id, trade_order_id, amount_cents, status, cancelled_at, card_id, paid_at, created_at, products(name)",
     )
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
@@ -197,6 +200,7 @@ export async function getMyOrders(userId: string): Promise<AdminOrder[]> {
       trade_order_id: row.trade_order_id,
       amount_cents: row.amount_cents,
       status: row.status,
+      cancelled_at: row.cancelled_at,
       card_id: row.card_id,
       card_secret: null, // 订单中心列表不展示卡密（买家在订单详情页查看）
       contact: null, // 买家本人订单页不展示联系方式

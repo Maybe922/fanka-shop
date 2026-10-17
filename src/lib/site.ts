@@ -1,5 +1,6 @@
 // One place to edit your store's name + copy + support contacts.
 export const site = {
+  hotProductIds: ["228409d0-e092-46ab-90bc-0ce21aa0b4dc"] as readonly string[],
   name: "双吉AI",
   tagline: "付款后自动发卡 · 即买即用",
   logoUrl:
@@ -9,7 +10,7 @@ export const site = {
   support: {
     telegram: "@Ericttkx_229",
     telegramUrl: "https://t.me/Ericttkx_229",
-    wechat: "modengsir001",
+    wechat: "Ericttkx_",
     wechatQrUrl: "/wechat-qr.png", // 微信加好友二维码（public/ 下，客服定制商品弹窗用）
   },
 };

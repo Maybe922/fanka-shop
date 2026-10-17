@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { Alert, Button, Card, Spinner } from "@heroui/react";
+import { RedemptionDemo } from "./purchase-demo/RedemptionDemo";
+import { CancelOrderButton } from "./CancelOrderButton";
 import type { OrderStatusPayload } from "@/lib/types";
 
 type Props = {
@@ -25,7 +27,7 @@ export function OrderStatusView({ orderId, usageNotes }: Props) {
           if (!active) return;
           setData(payload);
           // 终态（已付/已过期）停止轮询
-          if (payload.status === "paid" || payload.status === "expired") return;
+          if (payload.status === "paid" || (payload.status === "expired" && !payload.cancelledAt)) return;
         }
       } catch {
         // transient network error — keep polling
@@ -63,6 +65,7 @@ export function OrderStatusView({ orderId, usageNotes }: Props) {
           <Spinner size="sm" color="current" />
           等待支付确认，完成后这里会自动显示卡密…
         </span>
+        <CancelOrderButton orderId={orderId} />
       </Card>
     );
   }
@@ -72,9 +75,9 @@ export function OrderStatusView({ orderId, usageNotes }: Props) {
       <Alert status="danger">
         <Alert.Indicator />
         <Alert.Content>
-          <Alert.Title>订单已过期</Alert.Title>
+          <Alert.Title>{data.cancelledAt ? "订单已取消" : "订单已过期"}</Alert.Title>
           <Alert.Description>
-            本单超过支付时限未完成支付，已自动取消、库存已释放。请重新下单。
+            {data.cancelledAt ? "预留库存已释放，请勿继续付款。如已付款，系统仍会核验到账；长时间未更新请保留订单号联系客服。" : "本单超过支付时限未完成支付，库存已释放。请重新下单。"}
           </Alert.Description>
         </Alert.Content>
       </Alert>
@@ -137,6 +140,7 @@ function UsageGuide({ notes }: { notes?: string | null }) {
       <div className="whitespace-pre-line px-6 py-5 text-sm leading-relaxed text-foreground/80">
         {notes}
       </div>
+      {notes.toLowerCase().includes("hongyunai.pro") && <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-6 py-3"><span className="text-xs text-muted">HongyunAI 信用卡充值操作示意，其他通道请按上方说明操作。</span><RedemptionDemo /></div>}
     </Card>
   );
 }

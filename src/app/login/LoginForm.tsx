@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Alert,
@@ -37,6 +37,12 @@ export function LoginForm() {
   // 人机验证：token 一次性；失败后 bump nonce 强制重挂 widget 拿新 token。
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [captchaNonce, setCaptchaNonce] = useState(0);
+  const [cooldown, setCooldown] = useState(0);
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = setTimeout(() => setCooldown(n => Math.max(0, n - 1)), 1000);
+    return () => clearTimeout(timer);
+  }, [cooldown]);
 
   // 配了 site key 才要求人机验证；没配则不挡。
   const captchaRequired = Boolean(siteKey);
@@ -51,6 +57,7 @@ export function LoginForm() {
     setError(null);
     startTransition(async () => {
       const res = await requestOtp(email, captchaToken ?? "");
+      if (res.retryAfter) setCooldown(res.retryAfter);
       if (!res.ok) {
         setError(res.error);
         resetCaptcha(); // token 已被消费，刷新人机验证
@@ -129,9 +136,9 @@ export function LoginForm() {
             type="submit"
             variant="primary"
             fullWidth
-            isDisabled={pending || !captchaReady}
+            isDisabled={pending || !captchaReady || cooldown > 0}
           >
-            {pending ? "发送中…" : "获取验证码"}
+            {pending ? "发送中…" : cooldown > 0 ? `${cooldown} 秒后可重新获取` : "获取验证码"}
           </Button>
         </form>
       ) : (

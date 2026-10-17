@@ -3,6 +3,9 @@ import { getBuyer } from "@/lib/supabase/auth-server";
 import { createXunhuOrder } from "@/lib/xunhupay";
 import { centsToYuanString } from "@/lib/money";
 import { publicEnv } from "@/lib/env";
+import { prepareUsdtQuote, usdtEnabled } from "@/lib/bep20/server";
+import { prepareTrc20Quote, trc20Enabled } from "@/lib/trc20/server";
+import { ORDER_LIMIT_ERRORS, reserveOrder } from "@/lib/reserve-order";
 
 export const runtime = "nodejs";
 
@@ -30,14 +33,20 @@ export async function POST(req: Request) {
   }
 
   let productId: string;
+  let paymentMethod: string;
   try {
-    const body = (await req.json()) as { productId?: string };
+    const body = (await req.json()) as { productId?: string; paymentMethod?: string };
     productId = String(body.productId ?? "");
+    paymentMethod = body.paymentMethod ?? "wechat";
   } catch {
     return Response.json({ error: "请求格式错误" }, { status: 400 });
   }
   if (!productId) {
     return Response.json({ error: "缺少商品" }, { status: 400 });
+  }
+
+  if (!["wechat", "usdt_bep20", "usdt_trc20"].includes(paymentMethod)) {
+    return Response.json({ error: "不支持的支付方式" }, { status: 400 });
   }
 
   const supabase = createServiceClient();
@@ -111,9 +120,33 @@ export async function POST(req: Request) {
   const tradeOrderId = `FK${Date.now()}${Math.random().toString(36).slice(2, 8)}`;
   const expiresAt = new Date(Date.now() + 20 * 60 * 1000).toISOString(); // 20 分钟
 
+  if (paymentMethod === "usdt_bep20" || paymentMethod === "usdt_trc20") {
+    const tron = paymentMethod === "usdt_trc20";
+    if (!(tron ? trc20Enabled() : usdtEnabled())) return Response.json({ error: "USDT 支付暂未开放，请使用微信支付" }, { status: 503 });
+    try {
+      const quote = await (tron ? prepareTrc20Quote() : prepareUsdtQuote());
+      const { data: orderId, error } = await supabase.rpc(tron ? "create_usdt_trc20_order" : "create_usdt_order", {
+        p_product_id: productId, p_trade_order_id: tradeOrderId, p_amount_cents: product.price_cents,
+        p_user_id: buyer.id, p_email: buyer.email ?? null, p_ip: ip,
+        p_recipient: quote.recipient, p_rate_cny: quote.rate, p_rate_fetched_at: quote.fetchedAt,
+        p_start_block: quote.startBlock,
+      });
+      if (error) {
+        const limitError = ORDER_LIMIT_ERRORS[error.message];
+        if (limitError) return Response.json({ error: limitError }, { status: 429 });
+        throw new Error("USDT reservation failed");
+      }
+      if (!orderId) return Response.json({ error: "该商品暂时缺货" }, { status: 409 });
+      return Response.json({ orderId });
+    } catch {
+      console.error("[usdt] Failed to obtain a fresh quote or reserve order");
+      return Response.json({ error: "USDT 报价暂时不可用，请稍后重试或使用微信支付" }, { status: 503 });
+    }
+  }
+
   // 原子下单 + 预占 1 张卡（库存随之 -1）。无卡返回 null → 缺货。
-  const { data: orderId, error: reserveErr } = await supabase.rpc(
-    "create_order_reserved",
+  const { data: orderId, error: reserveErr } = await reserveOrder(
+    supabase,
     {
       p_product_id: productId,
       p_trade_order_id: tradeOrderId,
@@ -122,9 +155,14 @@ export async function POST(req: Request) {
       p_email: buyer.email ?? null,
       p_expires_at: expiresAt,
     },
+    ip,
   );
 
   if (reserveErr) {
+    const limitError = ORDER_LIMIT_ERRORS[reserveErr.message];
+    if (limitError) {
+      return Response.json({ error: limitError }, { status: 429 });
+    }
     console.error("[orders] 预占失败", reserveErr.message);
     return Response.json({ error: "下单失败，请重试" }, { status: 500 });
   }

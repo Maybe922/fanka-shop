@@ -26,60 +26,37 @@ function TelegramIcon({ className }: { className?: string }) {
   );
 }
 
-/**
- * 客服联系方式。
- * 桌面端（md+）平铺显示 TG + 微信，利于信任；
- * 移动端收成一个「客服」Popover，避免挤爆小屏。
- */
+/** 所有屏幕尺寸统一使用一个客服入口。 */
 export function CustomerService() {
   return (
-    <>
-      {/* ── 桌面：平铺 ───────────────────────────────── */}
-      <div className="hidden items-center gap-2 text-[12px] md:flex">
-        <span className="flex items-center gap-1.5 text-muted">
-          <HeadsetIcon className="h-3.5 w-3.5" />
-          客服
-        </span>
-        <a
-          href={telegramUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1.5 rounded-full border border-border bg-surface px-2.5 py-1 font-mono transition-colors hover:border-accent hover:text-accent"
-        >
-          <TelegramIcon className="h-3.5 w-3.5" />
-          {telegram}
-        </a>
-        <WechatCopyButton wechat={wechat} />
-      </div>
-
-      {/* ── 移动：Popover 浮层 ──────────────────────── */}
-      <div className="md:hidden">
-        <Popover>
-          <Button variant="tertiary" size="sm">
-            <HeadsetIcon className="h-3.5 w-3.5" />
-            客服
-          </Button>
-          <Popover.Content placement="bottom end" className="w-60 p-2">
-            <Popover.Dialog>
-              <a
-                href={telegramUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 transition-colors hover:bg-surface-secondary"
-              >
-                <TelegramIcon className="h-4 w-4 text-accent" />
-                <span className="flex flex-col">
-                  <span className="font-mono text-[10px] uppercase tracking-wider text-muted">
-                    Telegram
-                  </span>
-                  <span className="font-mono text-[13px]">{telegram}</span>
-                </span>
-              </a>
-              <WechatCopyButton wechat={wechat} variant="row" />
-            </Popover.Dialog>
-          </Popover.Content>
-        </Popover>
-      </div>
-    </>
+    <Popover>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-9 min-w-0 gap-1.5 rounded-lg px-2 text-[13px] font-normal text-muted sm:px-2.5"
+      >
+        <HeadsetIcon className="hidden h-4 w-4 sm:block" />
+        客服
+      </Button>
+      <Popover.Content placement="bottom end" className="w-64 max-w-[calc(100vw-2rem)] p-2">
+        <Popover.Dialog aria-label="联系客服">
+          <WechatCopyButton wechat={wechat} variant="row" />
+          <a
+            href={telegramUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 transition-colors hover:bg-surface-secondary"
+          >
+            <TelegramIcon className="h-4 w-4 text-accent" />
+            <span className="flex flex-col">
+              <span className="font-mono text-[10px] uppercase tracking-wider text-muted">
+                Telegram
+              </span>
+              <span className="font-mono text-[13px]">{telegram}</span>
+            </span>
+          </a>
+        </Popover.Dialog>
+      </Popover.Content>
+    </Popover>
   );
 }

@@ -134,7 +134,7 @@ function OrderChip({ order }: { order: AdminOrder }) {
   if (order.status === "expired") {
     return (
       <Chip size="sm" variant="soft" color="default">
-        已过期
+        {order.cancelled_at ? "已取消" : "已过期"}
       </Chip>
     );
   }

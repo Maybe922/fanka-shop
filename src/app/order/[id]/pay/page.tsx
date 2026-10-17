@@ -5,6 +5,9 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { PayPanel } from "@/components/PayPanel";
 import { getBuyer } from "@/lib/supabase/auth-server";
 import { createServiceClient } from "@/lib/supabase/server";
+import { UsdtPayPanel } from "@/components/UsdtPayPanel";
+import { getUsdtPayment } from "@/lib/bep20/server";
+import { amountText } from "@/lib/bep20/core";
 import { Price } from "@/components/Price";
 
 export const dynamic = "force-dynamic";
@@ -27,21 +30,22 @@ export default async function PayPage({
   const { data: order } = await supabase
     .from("orders")
     .select(
-      "id, trade_order_id, status, amount_cents, pay_code, user_id, product_id, expires_at, products(name)",
+      "id, cancelled_at, trade_order_id, status, amount_cents, pay_code, user_id, product_id, expires_at, payment_method, products(name)",
     )
     .eq("id", id)
     .single();
 
   if (!order) notFound();
   if (order.user_id !== buyer.id) redirect("/"); // 只有本人能看自己的收银台
-  if (order.status === "paid") redirect(`/order/${id}`); // 已付去卡密页
+  if (order.status === "paid" || order.cancelled_at) redirect(`/order/${id}`); // 已付去卡密页
 
   const product = order.products as { name: string } | { name: string }[] | null;
   const productName = Array.isArray(product)
     ? (product[0]?.name ?? "商品")
     : (product?.name ?? "商品");
 
-  const payCode = order.pay_code ?? "";
+  const usdt = ["usdt_bep20", "usdt_trc20"].includes(order.payment_method) ? await getUsdtPayment(id) : null;
+  const payCode = usdt ? usdt.recipient : order.pay_code ?? "";
   const qrDataUrl = payCode
     ? await QRCode.toDataURL(payCode, { width: 280, margin: 1 })
     : null;
@@ -52,7 +56,7 @@ export default async function PayPage({
 
       <div className="mx-auto max-w-md px-5 py-12">
         <h1 className="text-center text-xl font-semibold tracking-tight">
-          微信扫码支付
+          {usdt ? "USDT 支付" : "微信扫码支付"}
         </h1>
 
         <div className="mt-2 text-center">
@@ -64,13 +68,14 @@ export default async function PayPage({
         </div>
 
         <div className="mt-6">
-          <PayPanel
+          {usdt ? <UsdtPayPanel network={usdt.chain_id === 56 ? "BEP20" : "TRC20"} orderId={id} address={usdt.recipient} amount={amountText(usdt.amount_micros)}
+            rate={Number(usdt.rate_cny).toFixed(4)} qrDataUrl={qrDataUrl!} expiresAt={usdt.expires_at} initialReview={usdt.state === "review"} /> : <PayPanel
             orderId={id}
             productId={order.product_id}
             qrDataUrl={qrDataUrl}
             expiresAt={order.expires_at}
             initialExpired={order.status === "expired"}
-          />
+          />}
         </div>
 
         <p className="mt-6 text-center text-xs text-muted">

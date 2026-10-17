@@ -141,6 +141,18 @@ crontab -e
 
 下单即预占卡 20 分钟，为防脚本囤空库存有三道闸（`src/app/api/orders/route.ts`）：单账号最多 3 笔未付订单、同 IP 最多 6 笔未付订单、单账号每小时最多下 10 单。IP 限流依赖 `orders.ip` 列（schema.sql 已含，老库补一句 `alter table orders add column if not exists ip text;`），列不存在时自动放行不误伤。
 
+已有数据库还需执行 [`supabase/migrations/20260929_atomic_order_limits.sql`](supabase/migrations/20260929_atomic_order_limits.sql)，让限额检查、库存预占和 IP 记录在同一个事务内完成，防止并发请求突破限制。应用会优先调用新函数；迁移未执行时暂时保留旧流程并记录警告。
+
+### 过期订单库存回收
+
+首页与结账页读取库存前会回收过期预占。VPS 同时建议增加每分钟任务，即使无人访问也能释放库存（Node.js 需支持 `--env-file`）：
+
+```cron
+* * * * * flock -n /home/ubuntu/backups/fanka/expire-orders.lock sh -c 'cd /home/ubuntu/fanka-shop && /usr/bin/node --env-file=.env.local scripts/expire-orders.mjs' >> /home/ubuntu/backups/fanka/expire-orders.log 2>&1
+```
+
+过期只表示本地库存已释放，订单详情仍会向支付平台核实是否已付款。订单接口只有在订单已付、卡密已售且属于该订单时才返回卡密，并禁止缓存响应。
+
 ---
 
 ## 5. 部署到 Vercel

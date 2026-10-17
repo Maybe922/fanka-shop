@@ -146,6 +146,7 @@ export async function queryXunhuOrder(
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body,
       cache: "no-store",
+      signal: AbortSignal.timeout(8000),
     });
     const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
     const dataObj = (data.data ?? {}) as Record<string, unknown>;

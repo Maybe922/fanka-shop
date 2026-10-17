@@ -8,7 +8,6 @@ import {
   getOrdersPage,
   getAllCards,
   getPaidOrderStats,
-  getAdminArticles,
   expireStaleOrders,
 } from "@/lib/data";
 import type { AdminCard } from "@/lib/types";
@@ -16,8 +15,6 @@ import { signOut } from "@/app/login/actions";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { NewProductForm } from "@/components/admin/NewProductForm";
 import { AdminProductCard } from "@/components/admin/AdminProductCard";
-import { NewArticleForm } from "@/components/admin/NewArticleForm";
-import { AdminArticleCard } from "@/components/admin/AdminArticleCard";
 import { StatsOverview } from "@/components/admin/StatsOverview";
 import { OrdersTable } from "@/components/admin/OrdersTable";
 import { site } from "@/lib/site";
@@ -39,12 +36,11 @@ export default async function AdminPage({
   const { error, ok, page: pageParam } = await searchParams;
   const ORDERS_PAGE_SIZE = 20;
   const page = Math.max(1, Number(pageParam) || 1);
-  const [products, ordersPage, cards, paidStats, articles] = await Promise.all([
+  const [products, ordersPage, cards, paidStats] = await Promise.all([
     getAdminProducts(),
     getOrdersPage(page, ORDERS_PAGE_SIZE),
     getAllCards(),
     getPaidOrderStats(),
-    getAdminArticles(),
   ]);
 
   const stockLeft = products.reduce((sum, p) => sum + p.stock, 0);
@@ -138,24 +134,6 @@ export default async function AdminPage({
                   product={p}
                   cards={cardsByProduct.get(p.id) ?? []}
                 />
-              ))}
-            </div>
-          )}
-        </section>
-
-        <section id="articles">
-          <h2 className="mb-4 text-lg font-semibold tracking-tight">
-            教程文章
-          </h2>
-          <NewArticleForm />
-          {articles.length === 0 ? (
-            <p className="mt-5 text-sm text-muted">
-              还没有文章，用上方「新增教程」写第一篇。发布后会出现在首页「相关教程说明」。
-            </p>
-          ) : (
-            <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
-              {articles.map((a) => (
-                <AdminArticleCard key={a.id} article={a} />
               ))}
             </div>
           )}
